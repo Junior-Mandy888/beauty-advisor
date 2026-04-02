@@ -8,6 +8,7 @@ import 'package:beauty_advisor/screens/wardrobe/wardrobe_screen.dart';
 import 'package:beauty_advisor/screens/onboarding/onboarding_screen.dart';
 import 'package:beauty_advisor/screens/membership/membership_screen.dart';
 import 'package:beauty_advisor/screens/hairstyle/hairstyle_screen.dart';
+import 'package:beauty_advisor/screens/makeup/makeup_tutorial_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -41,6 +42,11 @@ final appRouter = GoRouter(
       path: '/hairstyle',
       name: 'hairstyle',
       builder: (context, state) => const HairstyleScreen(),
+    ),
+    GoRoute(
+      path: '/makeup',
+      name: 'makeup',
+      builder: (context, state) => const MakeupTutorialScreen(),
     ),
     GoRoute(
       path: '/recommendation',
