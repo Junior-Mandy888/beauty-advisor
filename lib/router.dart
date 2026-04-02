@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:beauty_advisor/screens/splash/splash_screen.dart';
 import 'package:beauty_advisor/screens/home/home_screen.dart';
 import 'package:beauty_advisor/screens/profile/profile_screen.dart';
 import 'package:beauty_advisor/screens/recommendation/recommendation_screen.dart';
@@ -7,8 +8,13 @@ import 'package:beauty_advisor/screens/wardrobe/wardrobe_screen.dart';
 import 'package:beauty_advisor/screens/onboarding/onboarding_screen.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/splash',
   routes: [
+    GoRoute(
+      path: '/splash',
+      name: 'splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
     GoRoute(
       path: '/',
       name: 'home',

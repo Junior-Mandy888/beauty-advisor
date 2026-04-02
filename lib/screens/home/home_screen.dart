@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:beauty_advisor/providers/user_provider.dart';
 import 'package:beauty_advisor/providers/weather_provider.dart';
 import 'package:beauty_advisor/providers/wardrobe_provider.dart';
 import 'package:beauty_advisor/models/wardrobe_item.dart';
 import 'package:beauty_advisor/services/weather_service.dart';
+import 'package:beauty_advisor/widgets/loading_animation.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,21 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkOnboardingAndInitialize();
+      _initialize();
     });
-  }
-  
-  Future<void> _checkOnboardingAndInitialize() async {
-    // 检查是否完成引导
-    final prefs = await SharedPreferences.getInstance();
-    final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
-    
-    if (!onboardingCompleted && mounted) {
-      context.push('/onboarding');
-      return;
-    }
-    
-    await _initialize();
   }
 
   Future<void> _initialize() async {
@@ -136,13 +123,13 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Consumer2<UserProvider, WeatherProvider>(
           builder: (context, user, weather, child) {
             if (user.isLoading) {
-              return const Center(
+              return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(color: Color(0xFFFF6B9D)),
-                    SizedBox(height: 16),
-                    Text('正在初始化...'),
+                    const BrandLoadingIndicator(size: 32),
+                    SizedBox(height: 16.h),
+                    Text('正在初始化...', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600])),
                   ],
                 ),
               );
