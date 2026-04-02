@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:beauty_advisor/models/recommendation.dart';
 import 'package:beauty_advisor/services/supabase_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 推荐历史状态管理 Provider
 class RecommendationProvider extends ChangeNotifier {
@@ -8,6 +10,7 @@ class RecommendationProvider extends ChangeNotifier {
   List<Recommendation> _favorites = [];
   bool _isLoading = false;
   String? _error;
+  String? _userId;
 
   // Getters
   List<Recommendation> get recommendations => _recommendations;
@@ -19,6 +22,7 @@ class RecommendationProvider extends ChangeNotifier {
 
   /// 加载推荐历史
   Future<void> loadRecommendations(String userId) async {
+    _userId = userId;
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -27,10 +31,17 @@ class RecommendationProvider extends ChangeNotifier {
       final data = await SupabaseService.getRecommendations(userId);
       _recommendations = data.map((json) => Recommendation.fromJson(json)).toList();
       _favorites = _recommendations.where((r) => r.isFavorite).toList();
+      
+      // 保存到本地缓存
+      await _saveToLocalCache();
+      
       _error = null;
     } catch (e) {
-      _error = '加载推荐历史失败: $e';
-      debugPrint(_error);
+      _error = '网络异常，已加载本地缓存';
+      debugPrint('加载推荐失败: $e');
+      
+      // 从本地缓存加载
+      await _loadFromLocalCache();
     }
 
     _isLoading = false;
@@ -44,6 +55,8 @@ class RecommendationProvider extends ChangeNotifier {
     String? faceShape,
     String? weatherCondition,
   }) async {
+    _userId = userId;
+    
     try {
       final id = 'rec_${DateTime.now().millisecondsSinceEpoch}';
       final recommendation = Recommendation(
@@ -56,8 +69,14 @@ class RecommendationProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-      await SupabaseService.saveRecommendation(recommendation.toJson());
+      try {
+        await SupabaseService.saveRecommendation(recommendation.toJson());
+      } catch (e) {
+        debugPrint('保存到云端失败，仅保存到本地: $e');
+      }
+
       _recommendations.insert(0, recommendation);
+      await _saveToLocalCache();
       notifyListeners();
       return recommendation;
     } catch (e) {
@@ -75,6 +94,8 @@ class RecommendationProvider extends ChangeNotifier {
     String? faceShape,
     String? weatherCondition,
   }) async {
+    _userId = userId;
+    
     try {
       final id = 'rec_${DateTime.now().millisecondsSinceEpoch}';
       final recommendation = Recommendation(
@@ -88,8 +109,14 @@ class RecommendationProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-      await SupabaseService.saveRecommendation(recommendation.toJson());
+      try {
+        await SupabaseService.saveRecommendation(recommendation.toJson());
+      } catch (e) {
+        debugPrint('保存到云端失败，仅保存到本地: $e');
+      }
+
       _recommendations.insert(0, recommendation);
+      await _saveToLocalCache();
       notifyListeners();
       return recommendation;
     } catch (e) {
@@ -109,45 +136,92 @@ class RecommendationProvider extends ChangeNotifier {
 
     try {
       await SupabaseService.favoriteRecommendation(recommendationId, newFavoriteStatus);
-      
-      _recommendations[index] = recommendation.copyWith(
-        isFavorite: newFavoriteStatus,
-        updatedAt: DateTime.now(),
-      );
-      
-      _favorites = _recommendations.where((r) => r.isFavorite).toList();
-      notifyListeners();
     } catch (e) {
-      _error = '操作失败: $e';
-      debugPrint(_error);
+      debugPrint('同步收藏状态失败: $e');
     }
+
+    _recommendations[index] = recommendation.copyWith(
+      isFavorite: newFavoriteStatus,
+      updatedAt: DateTime.now(),
+    );
+
+    _favorites = _recommendations.where((r) => r.isFavorite).toList();
+    await _saveToLocalCache();
+    notifyListeners();
   }
 
   /// 删除推荐
   Future<void> deleteRecommendation(String recommendationId) async {
     try {
       await SupabaseService.deleteRecommendation(recommendationId);
-      _recommendations.removeWhere((r) => r.id == recommendationId);
-      _favorites = _recommendations.where((r) => r.isFavorite).toList();
-      notifyListeners();
     } catch (e) {
-      _error = '删除失败: $e';
-      debugPrint(_error);
+      debugPrint('从云端删除失败: $e');
     }
+
+    _recommendations.removeWhere((r) => r.id == recommendationId);
+    _favorites = _recommendations.where((r) => r.isFavorite).toList();
+    await _saveToLocalCache();
+    notifyListeners();
   }
 
   /// 清空所有推荐
   Future<void> clearAll(String userId) async {
     try {
       for (final r in _recommendations) {
-        await SupabaseService.deleteRecommendation(r.id);
+        try {
+          await SupabaseService.deleteRecommendation(r.id);
+        } catch (e) {
+          // 忽略单个删除失败
+        }
       }
-      _recommendations.clear();
-      _favorites.clear();
-      notifyListeners();
     } catch (e) {
-      _error = '清空失败: $e';
-      debugPrint(_error);
+      debugPrint('清空云端数据失败: $e');
     }
+
+    _recommendations.clear();
+    _favorites.clear();
+    await _saveToLocalCache();
+    notifyListeners();
+  }
+
+  /// 保存到本地缓存
+  Future<void> _saveToLocalCache() async {
+    if (_userId == null) return;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = _recommendations.map((r) => r.toJson()).toList();
+      await prefs.setString('recommendations_$_userId', jsonEncode(jsonList));
+    } catch (e) {
+      debugPrint('本地缓存保存失败: $e');
+    }
+  }
+
+  /// 从本地缓存加载
+  Future<void> _loadFromLocalCache() async {
+    if (_userId == null) return;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('recommendations_$_userId');
+      if (cached != null) {
+        final List<dynamic> jsonList = jsonDecode(cached);
+        _recommendations = jsonList.map((json) => Recommendation.fromJson(json)).toList();
+        _favorites = _recommendations.where((r) => r.isFavorite).toList();
+      }
+    } catch (e) {
+      debugPrint('本地缓存加载失败: $e');
+      _recommendations = [];
+      _favorites = [];
+    }
+  }
+
+  /// 清空数据
+  void clear() {
+    _recommendations = [];
+    _favorites = [];
+    _userId = null;
+    _error = null;
+    notifyListeners();
   }
 }
