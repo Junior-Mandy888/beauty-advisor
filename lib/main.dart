@@ -5,6 +5,7 @@ import 'package:beauty_advisor/services/supabase_service.dart';
 import 'package:beauty_advisor/providers/user_provider.dart';
 import 'package:beauty_advisor/providers/wardrobe_provider.dart';
 import 'package:beauty_advisor/providers/weather_provider.dart';
+import 'package:beauty_advisor/providers/recommendation_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => WardrobeProvider()),
         // 天气状态 Provider
         ChangeNotifierProvider(create: (_) => WeatherProvider()),
+        // 推荐历史 Provider
+        ChangeNotifierProvider(create: (_) => RecommendationProvider()),
       ],
       child: const BeautyAdvisorApp(),
     ),

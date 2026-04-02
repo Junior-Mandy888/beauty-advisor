@@ -143,4 +143,9 @@ class SupabaseService {
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', recommendationId);
   }
+  
+  /// 删除推荐
+  static Future<void> deleteRecommendation(String recommendationId) async {
+    await _client.from('recommendations').delete().eq('id', recommendationId);
+  }
 }
