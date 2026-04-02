@@ -6,6 +6,7 @@ import 'package:beauty_advisor/screens/recommendation/recommendation_screen.dart
 import 'package:beauty_advisor/screens/face_analysis/face_analysis_screen.dart';
 import 'package:beauty_advisor/screens/wardrobe/wardrobe_screen.dart';
 import 'package:beauty_advisor/screens/onboarding/onboarding_screen.dart';
+import 'package:beauty_advisor/screens/membership/membership_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -29,6 +30,11 @@ final appRouter = GoRouter(
       path: '/profile',
       name: 'profile',
       builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: '/membership',
+      name: 'membership',
+      builder: (context, state) => const MembershipScreen(),
     ),
     GoRoute(
       path: '/recommendation',
