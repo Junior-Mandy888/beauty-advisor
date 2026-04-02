@@ -9,6 +9,7 @@ import 'package:beauty_advisor/screens/onboarding/onboarding_screen.dart';
 import 'package:beauty_advisor/screens/membership/membership_screen.dart';
 import 'package:beauty_advisor/screens/hairstyle/hairstyle_screen.dart';
 import 'package:beauty_advisor/screens/makeup/makeup_tutorial_screen.dart';
+import 'package:beauty_advisor/screens/virtual_tryon/virtual_tryon_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -47,6 +48,11 @@ final appRouter = GoRouter(
       path: '/makeup',
       name: 'makeup',
       builder: (context, state) => const MakeupTutorialScreen(),
+    ),
+    GoRoute(
+      path: '/virtual-tryon',
+      name: 'virtualTryOn',
+      builder: (context, state) => const VirtualTryOnScreen(),
     ),
     GoRoute(
       path: '/recommendation',
