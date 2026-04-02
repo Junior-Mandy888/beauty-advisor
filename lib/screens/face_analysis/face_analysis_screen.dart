@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:beauty_advisor/providers/user_provider.dart';
 import 'package:beauty_advisor/services/baidu_ai_service.dart';
 
 class FaceAnalysisScreen extends StatefulWidget {
-  const FaceAnalysisScreen({super.key});
+  final bool fromOnboarding;
+  
+  const FaceAnalysisScreen({super.key, this.fromOnboarding = false});
 
   @override
   State<FaceAnalysisScreen> createState() => _FaceAnalysisScreenState();
@@ -28,12 +31,21 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('脸型分析'),
+        automaticallyImplyLeading: !widget.fromOnboarding,
+        actions: widget.fromOnboarding ? [
+          TextButton(
+            onPressed: _skipToHome,
+            child: Text('跳过', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600])),
+          ),
+        ] : null,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16.w),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.fromOnboarding) _buildWelcomeTip(),
+            if (widget.fromOnboarding) SizedBox(height: 16.h),
             _buildImageSection(),
             SizedBox(height: 24.h),
             _buildAnalyzeButton(),
@@ -42,6 +54,32 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
             if (_result != null) _buildResultCard(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildWelcomeTip() {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFFF6B9D).withOpacity(0.1), const Color(0xFFFFB6C1).withOpacity(0.1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, color: const Color(0xFFFF6B9D), size: 24.sp),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Text(
+              '上传一张正面照片，AI 将为您分析脸型，提供更精准的穿搭建议',
+              style: TextStyle(fontSize: 14.sp, color: const Color(0xFFFF6B9D)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -70,17 +108,15 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
                     borderRadius: BorderRadius.circular(14.r),
                     child: Image.memory(_imageBytes!, fit: BoxFit.cover),
                   )
-                : SingleChildScrollView(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_a_photo, size: 48.sp, color: Colors.grey[400]),
-                        SizedBox(height: 12.h),
-                        Text('点击上传照片', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
-                        SizedBox(height: 4.h),
-                        Text('支持拍照或从相册选择', style: TextStyle(fontSize: 12.sp, color: Colors.grey[400])),
-                      ],
-                    ),
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_a_photo, size: 48.sp, color: Colors.grey[400]),
+                      SizedBox(height: 12.h),
+                      Text('点击上传照片', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
+                      SizedBox(height: 4.h),
+                      Text('支持拍照或从相册选择', style: TextStyle(fontSize: 12.sp, color: Colors.grey[400])),
+                    ],
                   ),
           ),
         ),
@@ -180,14 +216,14 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
           SizedBox(height: 24.h),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton(
+            child: ElevatedButton(
               onPressed: _saveResult,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFFF6B9D),
-                side: const BorderSide(color: Color(0xFFFF6B9D)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B9D),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
               ),
-              child: const Text('保存到个人档案'),
+              child: Text(widget.fromOnboarding ? '保存并开始使用' : '保存到个人档案'),
             ),
           ),
         ],
@@ -224,30 +260,29 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
       context: context,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20.r))),
       builder: (context) => SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.all(20.w),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('选择图片来源', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
-                SizedBox(height: 20.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSourceOption(
-                        icon: Icons.camera_alt,
-                        label: '拍照',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _pickImage(ImageSource.camera);
-                        },
-                      ),
+        child: Padding(
+          padding: EdgeInsets.all(20.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('选择图片来源', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
+              SizedBox(height: 20.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSourceOption(
+                      icon: Icons.camera_alt,
+                      label: '拍照',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _pickImage(ImageSource.camera);
+                      },
                     ),
-                    SizedBox(width: 16.w),
-                    Expanded(
-                      child: _buildSourceOption(
-                        icon: Icons.photo_library,
+                  ),
+                  SizedBox(width: 16.w),
+                  Expanded(
+                    child: _buildSourceOption(
+                      icon: Icons.photo_library,
                       label: '相册',
                       onTap: () {
                         Navigator.pop(context);
@@ -261,7 +296,6 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -328,9 +362,21 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
     final userProvider = context.read<UserProvider>();
     userProvider.setFaceShape(_result!.faceShapeChinese);
     userProvider.setAge(_result!.age);
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已保存脸型: ${_result!.faceShapeChinese}'), backgroundColor: const Color(0xFFFF6B9D)),
     );
-    Navigator.pop(context);
+    
+    if (widget.fromOnboarding) {
+      // 从引导页进入，保存后跳转到首页
+      context.go('/');
+    } else {
+      // 从其他页面进入，返回上一页
+      Navigator.pop(context);
+    }
+  }
+
+  void _skipToHome() {
+    context.go('/');
   }
 }

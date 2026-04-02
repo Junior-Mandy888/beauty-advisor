@@ -64,8 +64,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_completed', true);
     if (mounted) {
-      // 使用 push 而不是 go，这样用户可以返回首页
-      context.push('/face-analysis');
+      // 跳转到脸型分析页面，传递 fromOnboarding 参数
+      context.push('/face-analysis?fromOnboarding=true');
     }
   }
 

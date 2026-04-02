@@ -32,7 +32,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/face-analysis',
       name: 'faceAnalysis',
-      builder: (context, state) => const FaceAnalysisScreen(),
+      builder: (context, state) {
+        final fromOnboarding = state.uri.queryParameters['fromOnboarding'] == 'true';
+        return FaceAnalysisScreen(fromOnboarding: fromOnboarding);
+      },
     ),
     GoRoute(
       path: '/wardrobe',

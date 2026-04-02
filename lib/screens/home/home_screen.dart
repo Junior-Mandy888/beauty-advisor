@@ -19,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isInitialized = false;
   String? _lastCity;
+  bool _showGuide = false;
 
   @override
   void initState() {
@@ -55,7 +56,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (mounted) {
       _loadWeather(_lastCity);
+      _checkGuideStatus();
     }
+  }
+  
+  void _checkGuideStatus() {
+    final userProvider = context.read<UserProvider>();
+    final wardrobeProvider = context.read<WardrobeProvider>();
+    
+    // 如果没有脸型数据或衣橱为空，显示引导
+    final hasFaceData = userProvider.faceShape != null;
+    final hasWardrobe = wardrobeProvider.totalCount > 0;
+    
+    setState(() {
+      _showGuide = !hasFaceData || !hasWardrobe;
+    });
   }
   
   void _onCityChanged(String? newCity) {
@@ -110,6 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (currentCity != newCity) {
                   _onCityChanged(newCity);
                 }
+                _checkGuideStatus();
               }
             },
             tooltip: '个人中心',
@@ -140,6 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   await context.read<WardrobeProvider>().loadWardrobe();
                 }
                 _loadWeather(userProvider.city);
+                _checkGuideStatus();
               },
               color: const Color(0xFFFF6B9D),
               child: SingleChildScrollView(
@@ -150,6 +167,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     _buildGreeting(user),
                     SizedBox(height: 24.h),
+                    if (_showGuide) _buildGuideCard(user),
+                    if (_showGuide) SizedBox(height: 24.h),
                     _buildWeatherCard(weather),
                     SizedBox(height: 24.h),
                     _buildQuickActions(context),
@@ -190,6 +209,109 @@ class _HomeScreenState extends State<HomeScreen> {
         SizedBox(height: 8.h),
         Text('今天想变美吗？让我来帮你', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600])),
       ],
+    );
+  }
+  
+  Widget _buildGuideCard(UserProvider user) {
+    return Consumer<WardrobeProvider>(
+      builder: (context, wardrobe, _) {
+        final hasFaceData = user.faceShape != null;
+        final hasWardrobe = wardrobe.totalCount > 0;
+        
+        // 如果都完成了，不显示引导卡片
+        if (hasFaceData && hasWardrobe) {
+          return const SizedBox.shrink();
+        }
+        
+        return Container(
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [const Color(0xFFFF6B9D).withOpacity(0.15), const Color(0xFFFFB6C1).withOpacity(0.15)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: const Color(0xFFFF6B9D).withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.tips_and_updates, color: const Color(0xFFFF6B9D), size: 24.sp),
+                  SizedBox(width: 8.w),
+                  Text('完善信息，获取更精准推荐', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              SizedBox(height: 16.h),
+              if (!hasFaceData) _buildGuideItem(
+                icon: Icons.face_retouching_natural,
+                title: '脸型分析',
+                description: '上传照片，AI 分析您的脸型',
+                onTap: () => context.push('/face-analysis'),
+                completed: false,
+              ),
+              if (!hasFaceData && !hasWardrobe) SizedBox(height: 12.h),
+              if (!hasWardrobe) _buildGuideItem(
+                icon: Icons.checkroom,
+                title: '添加衣物',
+                description: '记录您的衣橱，推荐更精准',
+                onTap: () => context.push('/wardrobe'),
+                completed: false,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildGuideItem({
+    required IconData icon,
+    required String title,
+    required String description,
+    required VoidCallback onTap,
+    required bool completed,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44.w,
+              height: 44.w,
+              decoration: BoxDecoration(
+                color: completed ? Colors.green[50] : const Color(0xFFFF6B9D).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: Icon(
+                completed ? Icons.check : icon,
+                size: 24.sp,
+                color: completed ? Colors.green : const Color(0xFFFF6B9D),
+              ),
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600)),
+                  SizedBox(height: 2.h),
+                  Text(description, style: TextStyle(fontSize: 12.sp, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 20.sp, color: Colors.grey[400]),
+          ],
+        ),
+      ),
     );
   }
   
