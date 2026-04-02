@@ -5,7 +5,10 @@ on:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -27,15 +30,21 @@ jobs:
           flutter-version: '3.27.1'
           channel: 'stable'
       
+      - name: Check Flutter version
+        run: flutter --version
+      
+      - name: Check environment
+        run: flutter doctor -v
+      
       - name: Get dependencies
         run: flutter pub get
       
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build debug APK
+        run: flutter build apk --debug
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: beauty-advisor-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 30
