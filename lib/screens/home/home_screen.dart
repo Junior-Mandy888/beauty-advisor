@@ -8,6 +8,7 @@ import 'package:beauty_advisor/providers/wardrobe_provider.dart';
 import 'package:beauty_advisor/models/wardrobe_item.dart';
 import 'package:beauty_advisor/services/weather_service.dart';
 import 'package:beauty_advisor/widgets/loading_animation.dart';
+import 'package:beauty_advisor/widgets/brand_icons.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -340,42 +341,8 @@ class _HomeScreenState extends State<HomeScreen> {
   
   /// 根据天气条件返回对应图标
   Widget _buildWeatherIcon(String condition) {
-    IconData iconData;
-    switch (condition) {
-      case '晴':
-        iconData = Icons.wb_sunny;
-        break;
-      case '多云':
-        iconData = Icons.wb_cloudy;
-        break;
-      case '阴':
-        iconData = Icons.cloud;
-        break;
-      case '小雨':
-      case '中雨':
-      case '大雨':
-      case '阵雨':
-      case '暴雨':
-        iconData = Icons.grain;
-        break;
-      case '雷阵雨':
-      case '雷阵雨伴冰雹':
-        iconData = Icons.flash_on;
-        break;
-      case '小雪':
-      case '中雪':
-      case '大雪':
-      case '阵雪':
-        iconData = Icons.ac_unit;
-        break;
-      case '雾':
-      case '霜雾':
-        iconData = Icons.blur_on;
-        break;
-      default:
-        iconData = Icons.wb_sunny;
-    }
-    return Icon(iconData, size: 64.sp, color: Colors.white70);
+    final config = WeatherIconConfig.forCondition(condition);
+    return Icon(config.icon, size: 64.sp, color: Colors.white70);
   }
   
   Widget _buildQuickActions(BuildContext context) {
@@ -386,33 +353,29 @@ class _HomeScreenState extends State<HomeScreen> {
         SizedBox(height: 16.h),
         Row(
           children: [
-            _buildActionButton(icon: Icons.face, label: '脸型分析', onTap: () => context.push('/face-analysis')),
-            SizedBox(width: 16.w),
-            _buildActionButton(icon: Icons.checkroom, label: '我的衣橱', onTap: () => context.push('/wardrobe')),
-            SizedBox(width: 16.w),
-            _buildActionButton(icon: Icons.auto_awesome, label: '智能推荐', onTap: () => context.push('/recommendation')),
+            BrandIconButton(
+              icon: FeatureIconConfig.faceAnalysis.icon,
+              label: FeatureIconConfig.faceAnalysis.label,
+              onTap: () => context.push('/face-analysis'),
+              iconColor: FeatureIconConfig.faceAnalysis.color,
+            ),
+            SizedBox(width: 12.w),
+            BrandIconButton(
+              icon: FeatureIconConfig.wardrobe.icon,
+              label: FeatureIconConfig.wardrobe.label,
+              onTap: () => context.push('/wardrobe'),
+              iconColor: FeatureIconConfig.wardrobe.color,
+            ),
+            SizedBox(width: 12.w),
+            BrandIconButton(
+              icon: FeatureIconConfig.recommendation.icon,
+              label: FeatureIconConfig.recommendation.label,
+              onTap: () => context.push('/recommendation'),
+              iconColor: FeatureIconConfig.recommendation.color,
+            ),
           ],
         ),
       ],
-    );
-  }
-  
-  Widget _buildActionButton({required IconData icon, required String label, required VoidCallback onTap}) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 16.h),
-          decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12.r)),
-          child: Column(
-            children: [
-              Icon(icon, size: 32.sp, color: const Color(0xFFFF6B9D)),
-              SizedBox(height: 8.h),
-              Text(label, style: TextStyle(fontSize: 12.sp)),
-            ],
-          ),
-        ),
-      ),
     );
   }
   
@@ -471,12 +434,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 spacing: 8.w,
                 runSpacing: 12.h,
                 children: [
-                  _buildStatItem('总数', totalCount.toString(), Icons.inventory_2),
-                  _buildStatItem('衣服', wardrobe.getByCategory(WardrobeCategory.top).length.toString(), Icons.checkroom),
-                  _buildStatItem('裤子', wardrobe.getByCategory(WardrobeCategory.bottom).length.toString(), Icons.straighten),
-                  _buildStatItem('裙子', wardrobe.getByCategory(WardrobeCategory.dress).length.toString(), Icons.local_mall),
-                  _buildStatItem('鞋子', wardrobe.getByCategory(WardrobeCategory.shoes).length.toString(), Icons.hiking),
-                  _buildStatItem('配饰', wardrobe.getByCategory(WardrobeCategory.accessory).length.toString(), Icons.diamond),
+                  _buildStatItem('总数', totalCount.toString(), Icons.inventory_2_rounded, const Color(0xFF95A5A6)),
+                  _buildStatItem('上衣', wardrobe.getByCategory(WardrobeCategory.top).length.toString(), 
+                    CategoryIconConfig.forCategory('top').icon, CategoryIconConfig.forCategory('top').color),
+                  _buildStatItem('裤装', wardrobe.getByCategory(WardrobeCategory.bottom).length.toString(),
+                    CategoryIconConfig.forCategory('bottom').icon, CategoryIconConfig.forCategory('bottom').color),
+                  _buildStatItem('裙装', wardrobe.getByCategory(WardrobeCategory.dress).length.toString(),
+                    CategoryIconConfig.forCategory('dress').icon, CategoryIconConfig.forCategory('dress').color),
+                  _buildStatItem('鞋子', wardrobe.getByCategory(WardrobeCategory.shoes).length.toString(),
+                    CategoryIconConfig.forCategory('shoes').icon, CategoryIconConfig.forCategory('shoes').color),
+                  _buildStatItem('配饰', wardrobe.getByCategory(WardrobeCategory.accessory).length.toString(),
+                    CategoryIconConfig.forCategory('accessory').icon, CategoryIconConfig.forCategory('accessory').color),
                 ],
               ),
             ),
@@ -494,12 +462,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
   
-  Widget _buildStatItem(String label, String value, IconData icon) {
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
     return SizedBox(
       width: 56.w,
       child: Column(
         children: [
-          Icon(icon, size: 22.sp, color: const Color(0xFFFF6B9D)),
+          Icon(icon, size: 22.sp, color: color),
           SizedBox(height: 4.h),
           Text(value, style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
           Text(label, style: TextStyle(fontSize: 11.sp, color: Colors.grey[600])),
