@@ -206,6 +206,30 @@ class FeatureIconConfig {
     color: Color(0xFF95A5A6),
     label: '设置',
   );
+
+  static FeatureIconConfig get hairstyle => const FeatureIconConfig(
+    icon: Icons.face_rounded,
+    color: Color(0xFFE91E63),
+    label: '发型推荐',
+  );
+
+  static FeatureIconConfig get makeup => const FeatureIconConfig(
+    icon: Icons.brush_rounded,
+    color: Color(0xFF9C27B0),
+    label: '妆容教程',
+  );
+
+  static FeatureIconConfig get virtualTryOn => const FeatureIconConfig(
+    icon: Icons.try_sms_star_rounded,
+    color: Color(0xFF00BCD4),
+    label: '虚拟试衣',
+  );
+
+  static FeatureIconConfig get community => const FeatureIconConfig(
+    icon: Icons.forum_rounded,
+    color: Color(0xFF4CAF50),
+    label: '美妆社区',
+  );
 }
 
 /// 天气图标配置

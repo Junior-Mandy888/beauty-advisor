@@ -351,6 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Text('快捷功能', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
         SizedBox(height: 16.h),
+        // 第一行
         Row(
           children: [
             BrandIconButton(
@@ -372,6 +373,46 @@ class _HomeScreenState extends State<HomeScreen> {
               label: FeatureIconConfig.recommendation.label,
               onTap: () => context.push('/recommendation'),
               iconColor: FeatureIconConfig.recommendation.color,
+            ),
+            SizedBox(width: 12.w),
+            BrandIconButton(
+              icon: FeatureIconConfig.hairstyle.icon,
+              label: FeatureIconConfig.hairstyle.label,
+              onTap: () => context.push('/hairstyle'),
+              iconColor: FeatureIconConfig.hairstyle.color,
+            ),
+          ],
+        ),
+        SizedBox(height: 12.h),
+        // 第二行
+        Row(
+          children: [
+            BrandIconButton(
+              icon: FeatureIconConfig.makeup.icon,
+              label: FeatureIconConfig.makeup.label,
+              onTap: () => context.push('/makeup'),
+              iconColor: FeatureIconConfig.makeup.color,
+            ),
+            SizedBox(width: 12.w),
+            BrandIconButton(
+              icon: FeatureIconConfig.virtualTryOn.icon,
+              label: FeatureIconConfig.virtualTryOn.label,
+              onTap: () => context.push('/virtual-tryon'),
+              iconColor: FeatureIconConfig.virtualTryOn.color,
+            ),
+            SizedBox(width: 12.w),
+            BrandIconButton(
+              icon: FeatureIconConfig.community.icon,
+              label: FeatureIconConfig.community.label,
+              onTap: () => context.push('/community'),
+              iconColor: FeatureIconConfig.community.color,
+            ),
+            SizedBox(width: 12.w),
+            BrandIconButton(
+              icon: FeatureIconConfig.favorite.icon,
+              label: FeatureIconConfig.favorite.label,
+              onTap: () => context.push('/profile'),
+              iconColor: FeatureIconConfig.favorite.color,
             ),
           ],
         ),
