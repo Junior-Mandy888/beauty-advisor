@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// 发型类型
 enum HairstyleType {
   short,      // 短发

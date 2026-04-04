@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// 妆容风格
 enum MakeupStyle {
   daily,      // 日常妆

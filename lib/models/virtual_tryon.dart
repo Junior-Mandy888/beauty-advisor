@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// 虚拟试衣任务状态
 enum VirtualTryOnStatus {
   pending,    // 等待中

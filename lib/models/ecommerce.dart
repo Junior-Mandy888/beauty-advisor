@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// 商品来源平台
 enum ProductPlatform {
   taobao,    // 淘宝

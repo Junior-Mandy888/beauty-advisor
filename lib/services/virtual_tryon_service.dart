@@ -1,8 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:beauty_advisor/models/virtual_tryon.dart';
-import 'package:beauty_advisor/providers/membership_provider.dart';
 
 /// AI虚拟试衣服务
 class VirtualTryOnService {

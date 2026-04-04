@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// 社区帖子
 class CommunityPost {
   final String id;

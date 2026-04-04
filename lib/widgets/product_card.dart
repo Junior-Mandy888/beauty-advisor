@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:beauty_advisor/models/ecommerce.dart';
+import 'package:beauty_advisor/services/ecommerce_service.dart';
 
 /// 商品卡片组件
 class ProductCard extends StatelessWidget {

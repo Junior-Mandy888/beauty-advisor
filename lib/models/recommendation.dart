@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// 推荐记录模型
 class Recommendation {
   final String id;

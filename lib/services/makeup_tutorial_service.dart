@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:beauty_advisor/models/makeup_tutorial.dart';
 
 /// 妆容教程服务
