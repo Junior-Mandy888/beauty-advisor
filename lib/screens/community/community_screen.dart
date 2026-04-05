@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -157,6 +158,34 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
                       ],
                     ),
                   ),
+                  // 关注按钮
+                  GestureDetector(
+                    onTap: () => _followUser(post),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                      decoration: BoxDecoration(
+                        color: post.isFollowing 
+                            ? Colors.grey[200] 
+                            : const Color(0xFFFF6B9D),
+                        borderRadius: BorderRadius.circular(16.r),
+                        border: Border.all(
+                          color: post.isFollowing 
+                              ? Colors.grey[300]! 
+                              : const Color(0xFFFF6B9D),
+                        ),
+                      ),
+                      child: Text(
+                        post.isFollowing ? '已关注' : '关注',
+                        style: TextStyle(
+                          fontSize: 12.sp, 
+                          color: post.isFollowing 
+                              ? Colors.grey[600] 
+                              : Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -171,9 +200,9 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
               ),
             ),
             // 图片
-            if (post.imageUrls.isNotEmpty) ...[
+            if (post.imageUrls.isNotEmpty || post.imageBase64List.isNotEmpty) ...[
               SizedBox(height: 12.h),
-              _buildImageGrid(post.imageUrls),
+              _buildImageGrid(post),
             ],
             // 标签
             if (post.tags.isNotEmpty) ...[
@@ -227,10 +256,15 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildImageGrid(List<String> imageUrls) {
-    if (imageUrls.isEmpty) return const SizedBox.shrink();
+  Widget _buildImageGrid(CommunityPost post) {
+    // 优先显示base64本地图片，其次显示URL图片
+    final hasLocalImages = post.imageBase64List.isNotEmpty;
+    final hasUrlImages = post.imageUrls.isNotEmpty;
     
-    final count = imageUrls.length > 3 ? 3 : imageUrls.length;
+    if (!hasLocalImages && !hasUrlImages) return const SizedBox.shrink();
+    
+    final totalImages = hasLocalImages ? post.imageBase64List.length : post.imageUrls.length;
+    final count = totalImages > 3 ? 3 : totalImages;
     final imageSize = (MediaQuery.of(context).size.width - 32.w - 24.w) / 3;
     
     return Padding(
@@ -249,14 +283,39 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8.r),
-                  child: Container(
-                    color: const Color(0xFFFF6B9D).withOpacity(0.1),
-                    child: Center(
-                      child: Icon(Icons.image, size: 32.sp, color: Colors.grey[400]),
-                    ),
-                  ),
+                  child: hasLocalImages
+                      ? Image.memory(
+                          base64Decode(post.imageBase64List[index]),
+                          fit: BoxFit.cover,
+                          width: imageSize,
+                          height: imageSize,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFFFF6B9D).withOpacity(0.1),
+                            child: Center(
+                              child: Icon(Icons.broken_image, size: 32.sp, color: Colors.grey[400]),
+                            ),
+                          ),
+                        )
+                      : CachedNetworkImage(
+                          imageUrl: post.imageUrls[index],
+                          fit: BoxFit.cover,
+                          width: imageSize,
+                          height: imageSize,
+                          placeholder: (_, __) => Container(
+                            color: const Color(0xFFFF6B9D).withOpacity(0.1),
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: const Color(0xFFFF6B9D).withOpacity(0.1),
+                            child: Center(
+                              child: Icon(Icons.image, size: 32.sp, color: Colors.grey[400]),
+                            ),
+                          ),
+                        ),
                 ),
-                if (index == 2 && imageUrls.length > 3)
+                if (index == 2 && totalImages > 3)
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.5),
@@ -264,7 +323,7 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
                     ),
                     child: Center(
                       child: Text(
-                        '+${imageUrls.length - 3}',
+                        '+${totalImages - 3}',
                         style: TextStyle(fontSize: 16.sp, color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -358,10 +417,91 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
     _loadPosts();
   }
 
+  Future<void> _followUser(CommunityPost post) async {
+    await CommunityService().followUser(post.id, !post.isFollowing);
+    _loadPosts();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(post.isFollowing ? '已取消关注' : '关注成功'),
+          backgroundColor: const Color(0xFFFF6B9D),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
   void _sharePost(CommunityPost post) {
-    // TODO: 实现分享功能
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('分享功能开发中')),
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(20.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('分享到', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
+              SizedBox(height: 20.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildShareOption(Icons.chat, '微信', Colors.green, () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('微信分享功能开发中')),
+                    );
+                  }),
+                  _buildShareOption(Icons.group, '朋友圈', Colors.green[700]!, () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('朋友圈分享功能开发中')),
+                    );
+                  }),
+                  _buildShareOption(Icons.link, '复制链接', Colors.blue, () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('链接已复制'),
+                        backgroundColor: Color(0xFFFF6B9D),
+                      ),
+                    );
+                  }),
+                  _buildShareOption(Icons.more_horiz, '更多', Colors.grey[600]!, () {
+                    Navigator.pop(context);
+                  }),
+                ],
+              ),
+              SizedBox(height: 20.h),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShareOption(IconData icon, String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56.w,
+            height: 56.w,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 28.sp, color: color),
+          ),
+          SizedBox(height: 8.h),
+          Text(label, style: TextStyle(fontSize: 12.sp, color: Colors.grey[700])),
+        ],
+      ),
     );
   }
 
@@ -692,16 +832,14 @@ class _CreatePostPageState extends State<_CreatePostPage> {
     
     final userProvider = context.read<UserProvider>();
     
-    // 模拟图片URL（实际项目中需要上传到服务器）
-    final imageUrls = _selectedImages.asMap().entries.map((e) => 
-      'https://example.com/upload/img_${DateTime.now().millisecondsSinceEpoch}_${e.key}.jpg'
-    ).toList();
+    // 将图片转换为base64保存
+    final imageBase64List = _selectedImages.map((bytes) => base64Encode(bytes)).toList();
     
     await CommunityService().createPost(
       userId: userProvider.userId ?? 'anonymous',
       nickname: userProvider.nickname ?? '用户',
       content: _controller.text,
-      imageUrls: imageUrls,
+      imageBase64List: imageBase64List,
       tags: _tags,
     );
     

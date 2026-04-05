@@ -1,9 +1,12 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:beauty_advisor/models/hairstyle.dart';
 import 'package:beauty_advisor/services/hairstyle_service.dart';
+import 'package:beauty_advisor/services/ai_video_service.dart';
 import 'package:beauty_advisor/providers/user_provider.dart';
 import 'package:beauty_advisor/widgets/loading_animation.dart';
 
@@ -21,6 +24,10 @@ class _HairstyleScreenState extends State<HairstyleScreen> with SingleTickerProv
   List<Hairstyle> _allHairstyles = [];
   bool _isLoading = true;
   String? _userFaceShape;
+  Uint8List? _selectedFaceImage;
+  bool _isGeneratingVideo = false;
+  String? _generatedVideoUrl;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -80,9 +87,9 @@ class _HairstyleScreenState extends State<HairstyleScreen> with SingleTickerProv
               controller: _tabController,
               children: [
                 _buildRecommendedTab(),
-                _buildTypeTab(HairstyleType.short),
-                _buildTypeTab(HairstyleType.long),
-                _buildTypeTab(HairstyleType.updo),
+                _buildTypeTabWithVideo(HairstyleType.short, 'short'),
+                _buildTypeTabWithVideo(HairstyleType.long, 'long'),
+                _buildTypeTabWithVideo(HairstyleType.updo, 'updo'),
               ],
             ),
     );
@@ -162,6 +169,235 @@ class _HairstyleScreenState extends State<HairstyleScreen> with SingleTickerProv
       itemCount: filtered.length,
       itemBuilder: (context, index) => _buildHairstyleCard(filtered[index]),
     );
+  }
+
+  /// 带AI视频生成功能的发型类型标签页
+  Widget _buildTypeTabWithVideo(HairstyleType type, String videoType) {
+    final filtered = _allHairstyles.where((h) => h.type == type).toList();
+    final typeName = _getTypeName(type);
+    
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(16.w),
+      child: Column(
+        children: [
+          // AI视频生成卡片
+          _buildVideoGenerationCard(videoType, typeName),
+          SizedBox(height: 16.h),
+          // 发型列表
+          if (filtered.isEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: 32.h),
+              child: Text('暂无该类型发型', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
+            )
+          else
+            ...filtered.map((h) => _buildHairstyleCard(h)),
+        ],
+      ),
+    );
+  }
+
+  String _getTypeName(HairstyleType type) {
+    switch (type) {
+      case HairstyleType.short: return '短发';
+      case HairstyleType.long: return '长发';
+      case HairstyleType.updo: return '盘发';
+      default: return '发型';
+    }
+  }
+
+  /// AI视频生成卡片
+  Widget _buildVideoGenerationCard(String videoType, String typeName) {
+    return Container(
+      padding: EdgeInsets.all(20.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFFF6B9D).withOpacity(0.15), const Color(0xFFFFB6C1).withOpacity(0.15)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: const Color(0xFFFF6B9D).withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48.w,
+                height: 48.w,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6B9D).withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.videocam, color: Color(0xFFFF6B9D)),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('AI $typeName示例视频', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 4.h),
+                    Text(
+                      '上传您的脸型照片，AI将生成专属的${typeName}效果视频',
+                      style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+          // 已选图片预览
+          if (_selectedFaceImage != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12.r),
+              child: Image.memory(
+                _selectedFaceImage!,
+                height: 120.h,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+            SizedBox(height: 12.h),
+          ],
+          // 操作按钮
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isGeneratingVideo ? null : () => _pickFaceImage(videoType),
+                  icon: const Icon(Icons.photo_library, size: 18),
+                  label: Text(_selectedFaceImage != null ? '更换照片' : '上传脸型照片'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF6B9D),
+                    side: const BorderSide(color: Color(0xFFFF6B9D)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+                  ),
+                ),
+              ),
+              if (_selectedFaceImage != null) ...[
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isGeneratingVideo ? null : () => _generateHairstyleVideo(videoType),
+                    icon: _isGeneratingVideo
+                        ? SizedBox(
+                            width: 16.w,
+                            height: 16.w,
+                            child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.play_arrow, size: 18),
+                    label: Text(_isGeneratingVideo ? '生成中...' : '生成视频'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6B9D),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          // 生成结果提示
+          if (_generatedVideoUrl != null) ...[
+            SizedBox(height: 16.h),
+            Container(
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green[600], size: 20.sp),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: Text(
+                      '视频生成成功！可点击查看',
+                      style: TextStyle(fontSize: 13.sp, color: Colors.green[700]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 选择脸型照片
+  Future<void> _pickFaceImage(String videoType) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedFaceImage = bytes;
+          _generatedVideoUrl = null;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('选择图片失败: $e')),
+      );
+    }
+  }
+
+  /// 生成发型视频
+  Future<void> _generateHairstyleVideo(String videoType) async {
+    if (_selectedFaceImage == null || _userFaceShape == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先上传脸型照片')),
+      );
+      return;
+    }
+
+    setState(() => _isGeneratingVideo = true);
+
+    try {
+      final result = await AIVideoService.generateHairstyleVideo(
+        faceImage: _selectedFaceImage!,
+        hairstyleType: videoType,
+        faceShape: _userFaceShape!,
+      );
+
+      if (result.success) {
+        setState(() {
+          _generatedVideoUrl = result.videoUrl ?? 'demo_video_url';
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.isDemo ? result.demoMessage ?? '演示模式' : '视频生成成功！'),
+              backgroundColor: const Color(0xFFFF6B9D),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result.error ?? '生成失败')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('生成失败: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isGeneratingVideo = false);
+    }
   }
 
   Widget _buildHairstyleCard(Hairstyle hairstyle) {

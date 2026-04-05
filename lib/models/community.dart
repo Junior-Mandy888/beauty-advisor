@@ -6,10 +6,12 @@ class CommunityPost {
   final String? avatarUrl;
   final String content;
   final List<String> imageUrls;
+  final List<String> imageBase64List; // 新增：本地图片base64数据
   final List<String> tags;
   final int likeCount;
   final int commentCount;
   final bool isLiked;
+  final bool isFollowing; // 新增：是否关注该用户
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -20,10 +22,12 @@ class CommunityPost {
     this.avatarUrl,
     required this.content,
     this.imageUrls = const [],
+    this.imageBase64List = const [],
     this.tags = const [],
     this.likeCount = 0,
     this.commentCount = 0,
     this.isLiked = false,
+    this.isFollowing = false,
     required this.createdAt,
     this.updatedAt,
   });
@@ -36,10 +40,12 @@ class CommunityPost {
       avatarUrl: json['avatar_url'] as String?,
       content: json['content'] as String,
       imageUrls: List<String>.from(json['image_urls'] ?? []),
+      imageBase64List: List<String>.from(json['image_base64_list'] ?? []),
       tags: List<String>.from(json['tags'] ?? []),
       likeCount: json['like_count'] as int? ?? 0,
       commentCount: json['comment_count'] as int? ?? 0,
       isLiked: json['is_liked'] as bool? ?? false,
+      isFollowing: json['is_following'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null 
           ? DateTime.parse(json['updated_at'] as String) 
@@ -55,10 +61,12 @@ class CommunityPost {
       'avatar_url': avatarUrl,
       'content': content,
       'image_urls': imageUrls,
+      'image_base64_list': imageBase64List,
       'tags': tags,
       'like_count': likeCount,
       'comment_count': commentCount,
       'is_liked': isLiked,
+      'is_following': isFollowing,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
@@ -71,10 +79,12 @@ class CommunityPost {
     String? avatarUrl,
     String? content,
     List<String>? imageUrls,
+    List<String>? imageBase64List,
     List<String>? tags,
     int? likeCount,
     int? commentCount,
     bool? isLiked,
+    bool? isFollowing,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -85,10 +95,12 @@ class CommunityPost {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       content: content ?? this.content,
       imageUrls: imageUrls ?? this.imageUrls,
+      imageBase64List: imageBase64List ?? this.imageBase64List,
       tags: tags ?? this.tags,
       likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
       isLiked: isLiked ?? this.isLiked,
+      isFollowing: isFollowing ?? this.isFollowing,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

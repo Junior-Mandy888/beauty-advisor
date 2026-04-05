@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:beauty_advisor/models/community.dart';
 
 /// 社区服务
@@ -41,13 +42,14 @@ class CommunityService {
     return _getMockComments(postId);
   }
 
-  /// 发布帖子
+  /// 发布帖子（支持本地图片base64）
   Future<CommunityPost?> createPost({
     required String userId,
     required String nickname,
     String? avatarUrl,
     required String content,
     List<String> imageUrls = const [],
+    List<String> imageBase64List = const [],
     List<String> tags = const [],
   }) async {
     await Future.delayed(const Duration(milliseconds: 500));
@@ -59,10 +61,12 @@ class CommunityService {
       avatarUrl: avatarUrl,
       content: content,
       imageUrls: imageUrls,
+      imageBase64List: imageBase64List,
       tags: tags,
       likeCount: 0,
       commentCount: 0,
       isLiked: false,
+      isFollowing: false,
       createdAt: DateTime.now(),
     );
     
@@ -79,19 +83,22 @@ class CommunityService {
     final index = _userPosts.indexWhere((p) => p.id == postId);
     if (index != -1) {
       final post = _userPosts[index];
-      _userPosts[index] = CommunityPost(
-        id: post.id,
-        userId: post.userId,
-        nickname: post.nickname,
-        avatarUrl: post.avatarUrl,
-        content: post.content,
-        imageUrls: post.imageUrls,
-        tags: post.tags,
-        likeCount: isLike ? post.likeCount + 1 : post.likeCount - 1,
-        commentCount: post.commentCount,
+      _userPosts[index] = post.copyWith(
+        likeCount: isLike ? post.likeCount + 1 : (post.likeCount > 0 ? post.likeCount - 1 : 0),
         isLiked: isLike,
-        createdAt: post.createdAt,
       );
+    }
+    return true;
+  }
+
+  /// 关注/取消关注用户
+  Future<bool> followUser(String postId, bool isFollow) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    // 更新用户帖子的关注状态
+    final index = _userPosts.indexWhere((p) => p.id == postId);
+    if (index != -1) {
+      final post = _userPosts[index];
+      _userPosts[index] = post.copyWith(isFollowing: isFollow);
     }
     return true;
   }
@@ -105,6 +112,13 @@ class CommunityService {
     required String content,
   }) async {
     await Future.delayed(const Duration(milliseconds: 300));
+    
+    // 更新帖子评论数
+    final index = _userPosts.indexWhere((p) => p.id == postId);
+    if (index != -1) {
+      final post = _userPosts[index];
+      _userPosts[index] = post.copyWith(commentCount: post.commentCount + 1);
+    }
     
     return Comment(
       id: 'comment_${DateTime.now().millisecondsSinceEpoch}',
