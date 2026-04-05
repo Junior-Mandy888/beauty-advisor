@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:beauty_advisor/models/virtual_tryon.dart';
@@ -437,10 +438,10 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
 
     final membership = context.read<MembershipProvider>();
     
-    // 检查会员权限
+    // 检查会员权限 - 虚拟试衣是Pro功能
     if (!membership.isPro) {
-      // 免费用户检查次数
-      // TODO: 实现次数限制
+      _showProRequiredDialog();
+      return;
     }
 
     setState(() => _isGenerating = true);
@@ -470,5 +471,53 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
         SnackBar(content: Text('生成失败: $e')),
       );
     }
+  }
+
+  void _showProRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.workspace_premium, color: const Color(0xFFFF6B9D), size: 24.sp),
+            SizedBox(width: 8.w),
+            const Text('Pro 功能'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.checkroom, size: 64.sp, color: Colors.grey[300]),
+            SizedBox(height: 16.h),
+            Text(
+              'AI虚拟试衣是Pro会员专属功能',
+              style: TextStyle(fontSize: 16.sp),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              '升级Pro会员即可解锁此功能',
+              style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('知道了'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.push('/membership');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B9D),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('升级会员'),
+          ),
+        ],
+      ),
+    );
   }
 }
