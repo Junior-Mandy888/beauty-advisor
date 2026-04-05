@@ -20,7 +20,8 @@ class CommunityScreen extends StatefulWidget {
 
 class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<CommunityPost> _posts = [];
+  List<CommunityPost> _hotPosts = [];
+  List<CommunityPost> _latestPosts = [];
   bool _isLoading = true;
 
   @override
@@ -40,7 +41,9 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
     setState(() => _isLoading = true);
     
     try {
-      _posts = await CommunityService().getPopularPosts();
+      final service = CommunityService();
+      _hotPosts = await service.getPopularPosts();
+      _latestPosts = await service.getLatestPosts();
     } catch (e) {
       debugPrint('加载帖子失败: $e');
     }
@@ -74,8 +77,8 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildPostList(),
-          _buildPostList(),
+          _buildPostList(_hotPosts, '热门'),
+          _buildPostList(_latestPosts, '最新'),
           _buildFollowPlaceholder(),
         ],
       ),
@@ -87,14 +90,21 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildPostList() {
+  Widget _buildPostList(List<CommunityPost> posts, String tag) {
     if (_isLoading) {
       return const Center(child: BrandLoadingIndicator(size: 32));
     }
 
-    if (_posts.isEmpty) {
+    if (posts.isEmpty) {
       return Center(
-        child: Text('暂无帖子', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.article_outlined, size: 64.sp, color: Colors.grey[300]),
+            SizedBox(height: 16.h),
+            Text('暂无${tag}帖子', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
+          ],
+        ),
       );
     }
 
@@ -103,8 +113,8 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
       color: const Color(0xFFFF6B9D),
       child: ListView.builder(
         padding: EdgeInsets.all(16.w),
-        itemCount: _posts.length,
-        itemBuilder: (context, index) => _buildPostCard(_posts[index]),
+        itemCount: posts.length,
+        itemBuilder: (context, index) => _buildPostCard(posts[index]),
       ),
     );
   }
@@ -530,10 +540,56 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
 }
 
 /// 帖子详情页
-class _PostDetailPage extends StatelessWidget {
+class _PostDetailPage extends StatefulWidget {
   final CommunityPost post;
 
   const _PostDetailPage({required this.post});
+
+  @override
+  State<_PostDetailPage> createState() => _PostDetailPageState();
+}
+
+class _PostDetailPageState extends State<_PostDetailPage> {
+  List<Comment> _comments = [];
+  bool _isLoadingComments = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadComments();
+  }
+
+  Future<void> _loadComments() async {
+    setState(() => _isLoadingComments = true);
+    try {
+      _comments = await CommunityService().getComments(widget.post.id);
+    } catch (e) {
+      debugPrint('加载评论失败: $e');
+    }
+    setState(() => _isLoadingComments = false);
+  }
+
+  Future<void> _submitComment(String content) async {
+    if (content.isEmpty) return;
+    
+    final userProvider = context.read<UserProvider>();
+    
+    await CommunityService().createComment(
+      postId: widget.post.id,
+      userId: userProvider.userId ?? 'anonymous',
+      nickname: userProvider.nickname ?? '用户',
+      content: content,
+    );
+    
+    // 刷新评论列表
+    await _loadComments();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('评论成功'), backgroundColor: Color(0xFFFF6B9D)),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -543,11 +599,92 @@ class _PostDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 帖子内容
+            // 用户信息
             Padding(
               padding: EdgeInsets.all(16.w),
-              child: Text(post.content, style: TextStyle(fontSize: 16.sp, height: 1.6)),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24.r,
+                    backgroundColor: const Color(0xFFFF6B9D).withOpacity(0.1),
+                    child: widget.post.avatarUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(24.r),
+                            child: CachedNetworkImage(
+                              imageUrl: widget.post.avatarUrl!,
+                              fit: BoxFit.cover,
+                              width: 48.w,
+                              height: 48.w,
+                            ),
+                          )
+                        : Icon(Icons.person, size: 24.sp, color: const Color(0xFFFF6B9D)),
+                  ),
+                  SizedBox(width: 12.w),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.post.nickname, style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 4.h),
+                      Text(_formatTime(widget.post.createdAt), style: TextStyle(fontSize: 12.sp, color: Colors.grey[500])),
+                    ],
+                  ),
+                ],
+              ),
             ),
+            // 帖子内容
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Text(widget.post.content, style: TextStyle(fontSize: 16.sp, height: 1.6)),
+            ),
+            // 图片
+            if (widget.post.imageUrls.isNotEmpty || widget.post.imageBase64List.isNotEmpty) ...[
+              SizedBox(height: 16.h),
+              _buildDetailImages(widget.post),
+            ],
+            SizedBox(height: 16.h),
+            // 标签
+            if (widget.post.tags.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: Wrap(
+                  spacing: 8.w,
+                  children: widget.post.tags.map((tag) => Chip(
+                    label: Text('#$tag', style: TextStyle(fontSize: 12.sp)),
+                    backgroundColor: const Color(0xFFFF6B9D).withOpacity(0.1),
+                    labelStyle: const TextStyle(color: Color(0xFFFF6B9D)),
+                  )).toList(),
+                ),
+              ),
+            SizedBox(height: 16.h),
+            // 互动按钮
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Row(
+                children: [
+                  _buildActionButton(
+                    icon: widget.post.isLiked ? Icons.favorite : Icons.favorite_border,
+                    label: '${widget.post.likeCount}',
+                    color: widget.post.isLiked ? Colors.red : Colors.grey[600]!,
+                    onTap: () {},
+                  ),
+                  SizedBox(width: 24.w),
+                  _buildActionButton(
+                    icon: Icons.chat_bubble_outline,
+                    label: '${widget.post.commentCount}',
+                    color: Colors.grey[600]!,
+                    onTap: () {},
+                  ),
+                  SizedBox(width: 24.w),
+                  _buildActionButton(
+                    icon: Icons.share_outlined,
+                    label: '分享',
+                    color: Colors.grey[600]!,
+                    onTap: () {},
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 24.h),
             // 评论区
             Container(
               padding: EdgeInsets.all(16.w),
@@ -558,18 +695,21 @@ class _PostDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('评论 (${post.commentCount})', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                  Text('评论 (${_comments.length})', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
                   SizedBox(height: 16.h),
-                  FutureBuilder<List<Comment>>(
-                    future: CommunityService().getComments(post.id),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                      
-                      return Column(
-                        children: snapshot.data!.map((comment) => _buildCommentItem(comment)).toList(),
-                      );
-                    },
-                  ),
+                  if (_isLoadingComments)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_comments.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32.h),
+                        child: Text('暂无评论，快来抢沙发吧~', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
+                      ),
+                    )
+                  else
+                    Column(
+                      children: _comments.map((comment) => _buildCommentItem(comment)).toList(),
+                    ),
                 ],
               ),
             ),
@@ -578,6 +718,79 @@ class _PostDetailPage extends StatelessWidget {
       ),
       bottomNavigationBar: _buildCommentInput(context),
     );
+  }
+
+  Widget _buildDetailImages(CommunityPost post) {
+    final hasLocalImages = post.imageBase64List.isNotEmpty;
+    final images = hasLocalImages ? post.imageBase64List : post.imageUrls;
+    
+    return Column(
+      children: images.asMap().entries.map((entry) {
+        final index = entry.key;
+        final imageData = entry.value;
+        
+        return Container(
+          width: double.infinity,
+          margin: EdgeInsets.only(bottom: index < images.length - 1 ? 8.h : 0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12.r),
+            child: hasLocalImages
+                ? Image.memory(
+                    base64Decode(imageData),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 200.h,
+                      color: Colors.grey[200],
+                      child: Center(child: Icon(Icons.broken_image, size: 48.sp, color: Colors.grey[400])),
+                    ),
+                  )
+                : CachedNetworkImage(
+                    imageUrl: imageData,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      height: 200.h,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      height: 200.h,
+                      color: Colors.grey[200],
+                      child: Center(child: Icon(Icons.broken_image, size: 48.sp, color: Colors.grey[400])),
+                    ),
+                  ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Icon(icon, size: 20.sp, color: color),
+          SizedBox(width: 4.w),
+          Text(label, style: TextStyle(fontSize: 14.sp, color: color)),
+        ],
+      ),
+    );
+  }
+
+  static String _formatTime(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    
+    if (diff.inMinutes < 1) return '刚刚';
+    if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
+    if (diff.inHours < 24) return '${diff.inHours}小时前';
+    if (diff.inDays < 7) return '${diff.inDays}天前';
+    
+    return '${time.month}月${time.day}日';
   }
 
   Widget _buildCommentItem(Comment comment) {
@@ -630,15 +843,10 @@ class _PostDetailPage extends StatelessWidget {
           ),
           SizedBox(width: 12.w),
           IconButton(
-            onPressed: () async {
+            onPressed: () {
               if (controller.text.isNotEmpty) {
-                await CommunityService().createComment(
-                  postId: post.id,
-                  userId: 'user',
-                  nickname: '用户',
-                  content: controller.text,
-                );
-                Navigator.pop(context);
+                _submitComment(controller.text);
+                controller.clear();
               }
             },
             icon: const Icon(Icons.send, color: Color(0xFFFF6B9D)),
