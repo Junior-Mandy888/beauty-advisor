@@ -32,7 +32,7 @@ class _HairstyleScreenState extends State<HairstyleScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _loadData();
   }
 
@@ -70,6 +70,7 @@ class _HairstyleScreenState extends State<HairstyleScreen> with SingleTickerProv
         title: const Text('发型推荐'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           labelColor: const Color(0xFFFF6B9D),
           unselectedLabelColor: Colors.grey,
           indicatorColor: const Color(0xFFFF6B9D),
@@ -77,7 +78,9 @@ class _HairstyleScreenState extends State<HairstyleScreen> with SingleTickerProv
             Tab(text: '推荐'),
             Tab(text: '短发'),
             Tab(text: '长发'),
+            Tab(text: '卷发'),
             Tab(text: '盘发'),
+            Tab(text: '其他'),
           ],
         ),
       ),
@@ -89,9 +92,37 @@ class _HairstyleScreenState extends State<HairstyleScreen> with SingleTickerProv
                 _buildRecommendedTab(),
                 _buildTypeTabWithVideo(HairstyleType.short, 'short'),
                 _buildTypeTabWithVideo(HairstyleType.long, 'long'),
+                _buildTypeTabWithVideo(HairstyleType.curly, 'curly'),
                 _buildTypeTabWithVideo(HairstyleType.updo, 'updo'),
+                _buildOtherTab(),
               ],
             ),
+    );
+  }
+
+  /// 其他发型类型（包含中发、波波头、刘海、马尾、编发、直发）
+  Widget _buildOtherTab() {
+    final otherTypes = [
+      HairstyleType.medium,
+      HairstyleType.bob,
+      HairstyleType.bangs,
+      HairstyleType.ponytail,
+      HairstyleType.braid,
+      HairstyleType.straight,
+    ];
+    
+    final filtered = _allHairstyles.where((h) => otherTypes.contains(h.type)).toList();
+    
+    if (filtered.isEmpty) {
+      return Center(
+        child: Text('暂无该类型发型', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.all(16.w),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) => _buildHairstyleCard(filtered[index]),
     );
   }
 

@@ -133,10 +133,26 @@ class FaceAnalysisResult {
     const mapping = {
       'square': '方形脸',
       'triangle': '三角形脸',
-      'oval': '椭圆脸',
+      'oval': '鹅蛋脸',
       'heart': '心形脸',
       'round': '圆脸',
+      'oblong': '长形脸',
+      'diamond': '菱形脸',
     };
-    return mapping[faceShape] ?? faceShape;
+    return mapping[faceShape] ?? '标准脸型';
+  }
+  
+  /// 获取脸型特点描述
+  String get faceShapeDescription {
+    const descriptions = {
+      'square': '下颌线条明显，脸型棱角分明',
+      'triangle': '额头较宽，下巴较尖',
+      'oval': '脸型比例协调，是标准脸型',
+      'heart': '额头饱满，下巴尖翘',
+      'round': '脸部线条圆润，显得年轻可爱',
+      'oblong': '脸型偏长，五官纵向分布',
+      'diamond': '颧骨较宽，额头和下巴较窄',
+    };
+    return descriptions[faceShape] ?? '脸型比例协调';
   }
 }

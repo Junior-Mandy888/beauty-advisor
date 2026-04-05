@@ -33,7 +33,7 @@ class _MakeupTutorialScreenState extends State<MakeupTutorialScreen> with Single
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
     _loadData();
   }
 
@@ -76,9 +76,11 @@ class _MakeupTutorialScreenState extends State<MakeupTutorialScreen> with Single
           tabs: const [
             Tab(text: '推荐'),
             Tab(text: '日常'),
+            Tab(text: '裸妆'),
             Tab(text: '约会'),
             Tab(text: '韩系'),
             Tab(text: '职场'),
+            Tab(text: '派对'),
           ],
         ),
       ),
@@ -89,9 +91,11 @@ class _MakeupTutorialScreenState extends State<MakeupTutorialScreen> with Single
               children: [
                 _buildRecommendedTab(),
                 _buildStyleTabWithVideo(MakeupStyle.daily, 'daily', '日常妆容'),
+                _buildStyleTabWithVideo(MakeupStyle.natural, 'natural', '裸妆'),
                 _buildStyleTabWithVideo(MakeupStyle.date, 'date', '约会妆容'),
                 _buildStyleTabWithVideo(MakeupStyle.korean, 'korean', '韩系妆容'),
                 _buildStyleTabWithVideo(MakeupStyle.office, 'office', '职场妆容'),
+                _buildStyleTabWithVideo(MakeupStyle.party, 'party', '派对妆容'),
               ],
             ),
     );
