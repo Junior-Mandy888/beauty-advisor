@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:beauty_advisor/models/user_profile.dart';
 import 'package:beauty_advisor/services/supabase_service.dart';
 
@@ -36,6 +37,9 @@ class UserProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    // 先加载本地缓存
+    await _loadFromLocalCache();
+
     try {
       // 检查是否已登录
       if (SupabaseService.isAuthenticated) {
@@ -48,7 +52,9 @@ class UserProvider extends ChangeNotifier {
     } catch (e) {
       _error = '初始化失败: $e';
       // 离线模式：使用临时ID
-      _userId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
+      if (_userId == null) {
+        _userId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
+      }
     }
 
     _isLoading = false;
@@ -115,6 +121,9 @@ class UserProvider extends ChangeNotifier {
     _phone = phone ?? _phone;
     notifyListeners();
 
+    // 保存到本地持久化
+    await _saveToLocalCache();
+
     // 同步到云端
     try {
       final profile = UserProfile(
@@ -131,9 +140,46 @@ class UserProvider extends ChangeNotifier {
       );
       await SupabaseService.saveUserProfile(profile.toJson());
       _profile = profile;
+      debugPrint('用户数据已同步到云端');
     } catch (e) {
-      _error = '保存失败';
+      debugPrint('保存到云端失败，数据已保存到本地: $e');
+      _error = '网络异常，已保存到本地';
       notifyListeners();
+    }
+  }
+
+  /// 保存到本地缓存
+  Future<void> _saveToLocalCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', _userId ?? '');
+      await prefs.setString('user_nickname', _nickname ?? '');
+      await prefs.setString('user_faceShape', _faceShape ?? '');
+      await prefs.setInt('user_age', _age ?? 0);
+      await prefs.setString('user_gender', _gender ?? '');
+      await prefs.setString('user_city', _city ?? '');
+      debugPrint('用户数据已保存到本地缓存');
+    } catch (e) {
+      debugPrint('本地缓存保存失败: $e');
+    }
+  }
+
+  /// 从本地缓存加载
+  Future<void> _loadFromLocalCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _userId = prefs.getString('user_id');
+      _nickname = prefs.getString('user_nickname');
+      _faceShape = prefs.getString('user_faceShape');
+      _age = prefs.getInt('user_age');
+      _gender = prefs.getString('user_gender');
+      _city = prefs.getString('user_city');
+      
+      if (_faceShape != null && _faceShape!.isNotEmpty) {
+        debugPrint('从本地缓存加载用户数据: faceShape=$_faceShape');
+      }
+    } catch (e) {
+      debugPrint('本地缓存加载失败: $e');
     }
   }
 

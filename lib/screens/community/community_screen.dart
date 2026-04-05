@@ -1,7 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:beauty_advisor/models/community.dart';
 import 'package:beauty_advisor/services/community_service.dart';
 import 'package:beauty_advisor/providers/user_provider.dart';
@@ -372,13 +374,18 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
     );
   }
 
-  void _showCreatePost() {
-    Navigator.push(
+  void _showCreatePost() async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => const _CreatePostPage(),
       ),
     );
+    
+    // 如果发布成功，刷新列表
+    if (result == true && mounted) {
+      _loadPosts();
+    }
   }
 }
 
@@ -513,6 +520,8 @@ class _CreatePostPage extends StatefulWidget {
 class _CreatePostPageState extends State<_CreatePostPage> {
   final _controller = TextEditingController();
   final List<String> _tags = [];
+  final List<Uint8List> _selectedImages = [];
+  final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
 
   @override
@@ -542,24 +551,8 @@ class _CreatePostPageState extends State<_CreatePostPage> {
               onChanged: (_) => setState(() {}),
             ),
             SizedBox(height: 16.h),
-            // 添加图片
-            Container(
-              height: 100.h,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_photo_alternate, size: 24.sp, color: Colors.grey[500]),
-                    SizedBox(width: 8.w),
-                    Text('添加图片', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
-                  ],
-                ),
-              ),
-            ),
+            // 图片区域
+            _buildImageSection(),
             SizedBox(height: 16.h),
             // 标签
             Wrap(
@@ -595,20 +588,126 @@ class _CreatePostPageState extends State<_CreatePostPage> {
     );
   }
 
+  Widget _buildImageSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('添加图片（最多9张）', style: TextStyle(fontSize: 14.sp, color: Colors.grey[600])),
+        SizedBox(height: 12.h),
+        SizedBox(
+          height: 100.h,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              // 已选图片
+              ..._selectedImages.asMap().entries.map((entry) {
+                final index = entry.key;
+                final bytes = entry.value;
+                return Container(
+                  width: 100.w,
+                  height: 100.h,
+                  margin: EdgeInsets.only(right: 8.w),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8.r),
+                    color: Colors.grey[200],
+                  ),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8.r),
+                        child: Image.memory(bytes, fit: BoxFit.cover, width: 100.w, height: 100.h),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedImages.removeAt(index)),
+                          child: Container(
+                            padding: EdgeInsets.all(2.w),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.close, size: 14.sp, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              // 添加按钮
+              if (_selectedImages.length < 9)
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: 100.w,
+                    height: 100.h,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8.r),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_photo_alternate, size: 28.sp, color: Colors.grey[500]),
+                        SizedBox(height: 4.h),
+                        Text('添加图片', style: TextStyle(fontSize: 12.sp, color: Colors.grey[500])),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImages.add(bytes);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('选择图片失败: $e')),
+      );
+    }
+  }
+
   Future<void> _submitPost() async {
     setState(() => _isSubmitting = true);
     
     final userProvider = context.read<UserProvider>();
     
+    // 模拟图片URL（实际项目中需要上传到服务器）
+    final imageUrls = _selectedImages.asMap().entries.map((e) => 
+      'https://example.com/upload/img_${DateTime.now().millisecondsSinceEpoch}_${e.key}.jpg'
+    ).toList();
+    
     await CommunityService().createPost(
       userId: userProvider.userId ?? 'anonymous',
       nickname: userProvider.nickname ?? '用户',
       content: _controller.text,
+      imageUrls: imageUrls,
       tags: _tags,
     );
     
     if (mounted) {
-      Navigator.pop(context);
+      // 返回并刷新列表
+      Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('发布成功'), backgroundColor: Color(0xFFFF6B9D)),
       );

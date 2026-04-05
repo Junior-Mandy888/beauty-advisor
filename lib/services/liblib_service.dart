@@ -53,6 +53,51 @@ class LiblibService {
       );
     }
   }
+
+  /// 根据文字推荐内容生成对应的穿搭图片
+  static Future<LiblibResult> generateOutfitImageFromText({
+    required String textRecommendation,
+    required String faceShape,
+    required String weather,
+  }) async {
+    // 基于文字推荐内容构建更精准的提示词
+    final prompt = '''
+根据以下穿搭推荐文字，生成对应的穿搭参考图片：
+
+推荐内容：
+$textRecommendation
+
+额外要求：
+- 适合${faceShape}脸型
+- 天气：$weather
+- 高清、真实感、时尚杂志风格
+- 展示完整的穿搭搭配效果
+- 包含上装、下装、鞋子、配饰
+''';
+
+    try {
+      final response = await _dio.post(
+        '${AppConfig.supabaseUrl}/functions/v1/liblib-outfit',
+        data: {'prompt': prompt},
+        options: Options(headers: {
+          'apikey': AppConfig.supabaseKey,
+          'Content-Type': 'application/json',
+        }),
+      );
+
+      final data = response.data;
+      return LiblibResult(
+        success: data['success'] ?? false,
+        imageUrl: data['imageUrl'],
+        projectUrl: data['projectUrl'],
+      );
+    } on DioException catch (e) {
+      return LiblibResult(
+        success: false,
+        error: '生成失败: ${e.message}',
+      );
+    }
+  }
 }
 
 /// 生成结果

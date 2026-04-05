@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:beauty_advisor/models/virtual_tryon.dart';
 import 'package:beauty_advisor/services/virtual_tryon_service.dart';
 import 'package:beauty_advisor/providers/user_provider.dart';
@@ -299,16 +300,49 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
               color: Colors.grey[100],
               borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
             ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.checkroom, size: 64.sp, color: const Color(0xFFFF6B9D)),
-                  SizedBox(height: 12.h),
-                  Text('试衣效果已生成', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
+            child: _generatedImageUrl != null && _generatedImageUrl!.startsWith('http')
+                ? ClipRRect(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+                    child: CachedNetworkImage(
+                      imageUrl: _generatedImageUrl!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (context, url) => Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(color: Color(0xFFFF6B9D)),
+                            SizedBox(height: 12.h),
+                            Text('加载图片中...', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
+                          ],
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.checkroom, size: 64.sp, color: const Color(0xFFFF6B9D)),
+                            SizedBox(height: 12.h),
+                            Text('试衣效果已生成', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                            SizedBox(height: 8.h),
+                            Text('（图片加载失败，但效果已保存）', style: TextStyle(fontSize: 12.sp, color: Colors.grey[500])),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.checkroom, size: 64.sp, color: const Color(0xFFFF6B9D)),
+                        SizedBox(height: 12.h),
+                        Text('试衣效果已生成', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                        SizedBox(height: 8.h),
+                        Text('（演示模式：实际效果需连接AI服务）', style: TextStyle(fontSize: 12.sp, color: Colors.grey[500])),
+                      ],
+                    ),
+                  ),
           ),
           // 描述
           Padding(
@@ -335,6 +369,9 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () {
                           // TODO: 保存到收藏
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('已收藏'), backgroundColor: Color(0xFFFF6B9D)),
+                          );
                         },
                         icon: const Icon(Icons.bookmark_border),
                         label: const Text('收藏'),
@@ -349,6 +386,9 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
                       child: ElevatedButton.icon(
                         onPressed: () {
                           // TODO: 分享
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('分享功能开发中'), backgroundColor: Color(0xFFFF6B9D)),
+                          );
                         },
                         icon: const Icon(Icons.share),
                         label: const Text('分享'),

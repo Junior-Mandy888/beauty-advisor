@@ -6,21 +6,31 @@ class CommunityService {
   factory CommunityService() => _instance;
   CommunityService._internal();
 
+  // 保存用户发布的帖子
+  final List<CommunityPost> _userPosts = [];
+
   /// 获取热门帖子
   Future<List<CommunityPost>> getPopularPosts({int limit = 20}) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return _getMockPosts();
+    // 合并用户帖子与模拟帖子
+    return [..._userPosts, ..._getMockPosts()];
   }
 
   /// 获取最新帖子
   Future<List<CommunityPost>> getLatestPosts({int limit = 20}) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return _getMockPosts()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final allPosts = [..._userPosts, ..._getMockPosts()];
+    allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return allPosts;
   }
 
   /// 获取帖子详情
   Future<CommunityPost?> getPostDetail(String postId) async {
     await Future.delayed(const Duration(milliseconds: 300));
+    // 先查用户帖子
+    final userPost = _userPosts.where((p) => p.id == postId).firstOrNull;
+    if (userPost != null) return userPost;
+    // 再查模拟帖子
     final posts = _getMockPosts();
     return posts.firstWhere((p) => p.id == postId);
   }
@@ -42,7 +52,7 @@ class CommunityService {
   }) async {
     await Future.delayed(const Duration(milliseconds: 500));
     
-    return CommunityPost(
+    final post = CommunityPost(
       id: 'post_${DateTime.now().millisecondsSinceEpoch}',
       userId: userId,
       nickname: nickname,
@@ -50,13 +60,39 @@ class CommunityService {
       content: content,
       imageUrls: imageUrls,
       tags: tags,
+      likeCount: 0,
+      commentCount: 0,
+      isLiked: false,
       createdAt: DateTime.now(),
     );
+    
+    // 添加到用户帖子列表
+    _userPosts.insert(0, post);
+    
+    return post;
   }
 
   /// 点赞帖子
   Future<bool> likePost(String postId, bool isLike) async {
     await Future.delayed(const Duration(milliseconds: 200));
+    // 更新用户帖子的点赞状态
+    final index = _userPosts.indexWhere((p) => p.id == postId);
+    if (index != -1) {
+      final post = _userPosts[index];
+      _userPosts[index] = CommunityPost(
+        id: post.id,
+        userId: post.userId,
+        nickname: post.nickname,
+        avatarUrl: post.avatarUrl,
+        content: post.content,
+        imageUrls: post.imageUrls,
+        tags: post.tags,
+        likeCount: isLike ? post.likeCount + 1 : post.likeCount - 1,
+        commentCount: post.commentCount,
+        isLiked: isLike,
+        createdAt: post.createdAt,
+      );
+    }
     return true;
   }
 
@@ -84,7 +120,8 @@ class CommunityService {
   /// 搜索帖子
   Future<List<CommunityPost>> searchPosts(String keyword) async {
     await Future.delayed(const Duration(milliseconds: 300));
-    return _getMockPosts()
+    final allPosts = [..._userPosts, ..._getMockPosts()];
+    return allPosts
         .where((p) => 
             p.content.contains(keyword) || 
             p.tags.any((t) => t.contains(keyword)))

@@ -216,22 +216,81 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             _textRecommendation!,
             style: TextStyle(fontSize: 14.sp, height: 1.6),
           ),
-          if (_currentTextRec == null) ...[
-            SizedBox(height: 16.h),
-            OutlinedButton.icon(
-              onPressed: _saveTextRecommendation,
-              icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-              label: const Text('保存到历史'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFFF6B9D),
-                side: const BorderSide(color: Color(0xFFFF6B9D)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+          SizedBox(height: 16.h),
+          // 新增：根据文字推荐生成图片按钮
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLoadingImage ? null : () => _generateImageFromText(),
+                  icon: _isLoadingImage 
+                    ? SizedBox(
+                        width: 16.w,
+                        height: 16.w,
+                        child: const CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.image, size: 18),
+                  label: Text(_isLoadingImage ? '生成中...' : '生成推荐图片'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF6B9DFF),
+                    side: const BorderSide(color: Color(0xFF6B9DFF)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  /// 根据文字推荐生成对应图片
+  Future<void> _generateImageFromText() async {
+    if (_textRecommendation == null) return;
+    
+    final user = context.read<UserProvider>();
+    if (user.faceShape == null) {
+      setState(() => _error = '请先进行脸型分析');
+      return;
+    }
+
+    setState(() {
+      _isLoadingImage = true;
+      _error = null;
+      _imageUrl = null;
+      _currentImageRec = null;
+    });
+
+    try {
+      final weather = context.read<WeatherProvider>();
+      
+      // 基于文字推荐内容生成图片
+      final result = await LiblibService.generateOutfitImageFromText(
+        textRecommendation: _textRecommendation!,
+        faceShape: user.faceShape!,
+        weather: '${weather.currentWeather?.condition ?? "晴"}，${weather.currentWeather?.temperature.toInt() ?? 26}°C',
+      );
+
+      setState(() {
+        if (result.success && result.imageUrl != null) {
+          _imageUrl = result.imageUrl;
+          _projectUrl = result.projectUrl;
+          // 自动保存图片推荐
+          if (user.userId != null) {
+            _autoSaveImageRecommendation(result.imageUrl!, user, weather, result.projectUrl);
+          }
+        } else {
+          _error = result.error ?? '生成失败，请重试';
+        }
+        _isLoadingImage = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoadingImage = false;
+      });
+    }
   }
 
   Widget _buildImageResultCard() {
@@ -345,11 +404,37 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         _textRecommendation = result;
         _isLoadingText = false;
       });
+
+      // 自动保存文字推荐
+      if (result.isNotEmpty && user.userId != null) {
+        _autoSaveTextRecommendation(result, user, weather);
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
         _isLoadingText = false;
       });
+    }
+  }
+
+  /// 自动保存文字推荐
+  Future<void> _autoSaveTextRecommendation(String content, UserProvider user, WeatherProvider weather) async {
+    final rec = await context.read<RecommendationProvider>().saveTextRecommendation(
+      userId: user.userId!,
+      content: content,
+      faceShape: user.faceShape,
+      weatherCondition: weather.currentWeather?.condition,
+    );
+    
+    if (rec != null && mounted) {
+      setState(() => _currentTextRec = rec);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已自动保存到历史记录'),
+          backgroundColor: Color(0xFFFF6B9D),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -377,6 +462,10 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         if (result.success && result.imageUrl != null) {
           _imageUrl = result.imageUrl;
           _projectUrl = result.projectUrl;
+          // 自动保存图片推荐
+          if (user.userId != null) {
+            _autoSaveImageRecommendation(result.imageUrl!, user, weather, result.projectUrl);
+          }
         } else {
           _error = result.error ?? '生成失败，请重试';
         }
@@ -387,6 +476,28 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         _error = e.toString();
         _isLoadingImage = false;
       });
+    }
+  }
+
+  /// 自动保存图片推荐
+  Future<void> _autoSaveImageRecommendation(String imageUrl, UserProvider user, WeatherProvider weather, String? projectUrl) async {
+    final rec = await context.read<RecommendationProvider>().saveImageRecommendation(
+      userId: user.userId!,
+      imageUrl: imageUrl,
+      projectUrl: projectUrl,
+      faceShape: user.faceShape,
+      weatherCondition: weather.currentWeather?.condition,
+    );
+    
+    if (rec != null && mounted) {
+      setState(() => _currentImageRec = rec);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已自动保存到历史记录'),
+          backgroundColor: Color(0xFF6B9DFF),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
