@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:beauty_advisor/models/makeup_tutorial.dart';
@@ -106,16 +107,271 @@ class _MakeupTutorialScreenState extends State<MakeupTutorialScreen> with Single
       return _buildNoFaceDataState();
     }
 
-    if (_recommendedTutorials.isEmpty) {
-      return Center(
-        child: Text('暂无适合您脸型的妆容推荐', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(16.w),
+      child: Column(
+        children: [
+          // AI推荐图片生成卡片
+          _buildAIRecommendationCard(),
+          SizedBox(height: 16.h),
+          // 脸型信息
+          _buildFaceShapeInfo(),
+          SizedBox(height: 16.h),
+          // 妆容列表
+          if (_recommendedTutorials.isEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: 32.h),
+              child: Text('暂无适合您脸型的妆容推荐', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
+            )
+          else
+            ..._recommendedTutorials.map((t) => _buildTutorialCard(t)),
+        ],
+      ),
+    );
+  }
+
+  /// AI推荐图片生成卡片
+  Widget _buildAIRecommendationCard() {
+    return Container(
+      padding: EdgeInsets.all(20.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFFF6B9D).withOpacity(0.15), const Color(0xFFFFB6C1).withOpacity(0.15)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: const Color(0xFFFF6B9D).withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48.w,
+                height: 48.w,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6B9D).withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.auto_awesome, color: Color(0xFFFF6B9D)),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('AI 妆容推荐', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 4.h),
+                    Text(
+                      '上传脸型照片，AI为您生成专属推荐妆容图片',
+                      style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+          // 已选图片预览
+          if (_selectedFaceImage != null && _currentVideoStyle == 'recommend') ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12.r),
+              child: Image.memory(
+                _selectedFaceImage!,
+                height: 150.h,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+            SizedBox(height: 12.h),
+          ],
+          // 生成的图片预览
+          if (_generatedVideoUrl != null && _currentVideoStyle == 'recommend') ...[
+            Container(
+              height: 200.h,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle, size: 48.sp, color: Colors.green),
+                  SizedBox(height: 12.h),
+                  Text('推荐妆容图片已生成', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 8.h),
+                  ElevatedButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('正在加载推荐妆容图片...'),
+                          backgroundColor: Color(0xFFFF6B9D),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6B9D),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('查看推荐妆容'),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12.h),
+          ],
+          // 操作按钮
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isGeneratingVideo ? null : () => _pickFaceImage('recommend'),
+                  icon: const Icon(Icons.photo_library, size: 18),
+                  label: Text(_selectedFaceImage != null && _currentVideoStyle == 'recommend' ? '更换照片' : '上传脸型照片'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF6B9D),
+                    side: const BorderSide(color: Color(0xFFFF6B9D)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+                  ),
+                ),
+              ),
+              if (_selectedFaceImage != null && _currentVideoStyle == 'recommend') ...[
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isGeneratingVideo ? null : _generateRecommendationImage,
+                    icon: _isGeneratingVideo
+                        ? SizedBox(
+                            width: 16.w,
+                            height: 16.w,
+                            child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.auto_awesome, size: 18),
+                    label: Text(_isGeneratingVideo ? '生成中...' : '生成推荐'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6B9D),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 脸型信息卡片
+  Widget _buildFaceShapeInfo() {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.h),
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFFF6B9D).withOpacity(0.1), const Color(0xFFFFB6C1).withOpacity(0.1)],
+        ),
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48.w,
+            height: 48.w,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF6B9D).withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.face, color: Color(0xFFFF6B9D)),
+          ),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('您的脸型: $_userFaceShape', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold)),
+                SizedBox(height: 4.h),
+                Text('为您推荐最适合的妆容', style: TextStyle(fontSize: 12.sp, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 生成推荐妆容图片
+  Future<void> _generateRecommendationImage() async {
+    if (_selectedFaceImage == null || _userFaceShape == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先上传脸型照片')),
       );
+      return;
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.all(16.w),
-      itemCount: _recommendedTutorials.length,
-      itemBuilder: (context, index) => _buildTutorialCard(_recommendedTutorials[index]),
+    setState(() => _isGeneratingVideo = true);
+
+    try {
+      final result = await AIVideoService.generateMakeupVideo(
+        faceImage: _selectedFaceImage!,
+        makeupStyle: 'recommend',
+        faceShape: _userFaceShape!,
+      );
+
+      if (result.success) {
+        setState(() {
+          _generatedVideoUrl = result.videoUrl ?? 'generated_image_url';
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.isDemo ? '演示模式：实际图片需连接AI服务生成' : '推荐妆容图片生成成功！'),
+              backgroundColor: const Color(0xFFFF6B9D),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result.error ?? '生成失败')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('生成失败: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isGeneratingVideo = false);
+    }
+  }
+
+  Widget _buildNoFaceDataState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.face_retouching_natural, size: 64.sp, color: Colors.grey[300]),
+          SizedBox(height: 16.h),
+          Text('请先进行脸型分析', style: TextStyle(fontSize: 16.sp, color: Colors.grey[500])),
+          SizedBox(height: 24.h),
+          ElevatedButton(
+            onPressed: () => context.push('/face-analysis'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B9D),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+            ),
+            child: const Text('去分析脸型'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -439,7 +695,7 @@ class _MakeupTutorialScreenState extends State<MakeupTutorialScreen> with Single
     );
   }
 
-  Widget _buildNoFaceDataState() {
+  Widget _buildNoFaceDataStateOld() {
     return Center(
       child: Padding(
         padding: EdgeInsets.all(32.w),
@@ -453,7 +709,7 @@ class _MakeupTutorialScreenState extends State<MakeupTutorialScreen> with Single
             Text('分析脸型后可获得专属妆容推荐', style: TextStyle(fontSize: 14.sp, color: Colors.grey[400])),
             SizedBox(height: 24.h),
             ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/face-analysis'),
+              onPressed: () => context.push('/face-analysis'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF6B9D),
                 foregroundColor: Colors.white,
