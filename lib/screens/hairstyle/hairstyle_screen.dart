@@ -155,22 +155,6 @@ class _HairstyleScreenState extends State<HairstyleScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildTypeTab(HairstyleType type) {
-    final filtered = _allHairstyles.where((h) => h.type == type).toList();
-    
-    if (filtered.isEmpty) {
-      return Center(
-        child: Text('暂无该类型发型', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
-      );
-    }
-
-    return ListView.builder(
-      padding: EdgeInsets.all(16.w),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) => _buildHairstyleCard(filtered[index]),
-    );
-  }
-
   /// 带AI视频生成功能的发型类型标签页
   Widget _buildTypeTabWithVideo(HairstyleType type, String videoType) {
     final filtered = _allHairstyles.where((h) => h.type == type).toList();

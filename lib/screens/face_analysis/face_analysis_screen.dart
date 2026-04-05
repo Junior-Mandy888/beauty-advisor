@@ -20,7 +20,6 @@ class FaceAnalysisScreen extends StatefulWidget {
 
 class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
   final ImagePicker _picker = ImagePicker();
-  XFile? _selectedImage;
   Uint8List? _imageBytes;
   bool _isAnalyzing = false;
   FaceAnalysisResult? _result;
@@ -322,7 +321,6 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
       if (image != null) {
         final bytes = await image.readAsBytes();
         setState(() {
-          _selectedImage = image;
           _imageBytes = bytes;
           _result = null;
           _error = null;

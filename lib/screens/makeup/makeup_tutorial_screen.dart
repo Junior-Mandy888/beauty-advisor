@@ -115,22 +115,6 @@ class _MakeupTutorialScreenState extends State<MakeupTutorialScreen> with Single
     );
   }
 
-  Widget _buildStyleTab(MakeupStyle style) {
-    final filtered = _allTutorials.where((t) => t.style == style).toList();
-    
-    if (filtered.isEmpty) {
-      return Center(
-        child: Text('暂无该风格妆容', style: TextStyle(fontSize: 14.sp, color: Colors.grey[500])),
-      );
-    }
-
-    return ListView.builder(
-      padding: EdgeInsets.all(16.w),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) => _buildTutorialCard(filtered[index]),
-    );
-  }
-
   /// 带AI视频生成功能的妆容风格标签页
   Widget _buildStyleTabWithVideo(MakeupStyle style, String videoStyle, String styleName) {
     final filtered = _allTutorials.where((t) => t.style == style).toList();

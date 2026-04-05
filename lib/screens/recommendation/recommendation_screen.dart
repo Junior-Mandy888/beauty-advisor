@@ -501,30 +501,6 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     }
   }
 
-  Future<void> _saveTextRecommendation() async {
-    if (_textRecommendation == null) return;
-    
-    final userProvider = context.read<UserProvider>();
-    final weather = context.read<WeatherProvider>();
-    
-    final rec = await context.read<RecommendationProvider>().saveTextRecommendation(
-      userId: userProvider.userId!,
-      content: _textRecommendation!,
-      faceShape: userProvider.faceShape,
-      weatherCondition: weather.currentWeather?.condition,
-    );
-    
-    if (rec != null && mounted) {
-      setState(() => _currentTextRec = rec);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('已保存到历史记录'),
-          backgroundColor: Color(0xFFFF6B9D),
-        ),
-      );
-    }
-  }
-
   Future<void> _saveImageRecommendation() async {
     if (_imageUrl == null) return;
     

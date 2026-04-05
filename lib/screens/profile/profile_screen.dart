@@ -261,12 +261,7 @@ class ProfileScreen extends StatelessWidget {
             icon: Icons.history,
             title: '推荐历史',
             subtitle: '查看过往推荐记录',
-            onTap: () {
-              // TODO: 推荐历史页面
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('功能开发中')),
-              );
-            },
+            onTap: () => context.push('/recommendation'),
           ),
           Divider(height: 1.h, indent: 56.w),
           _buildMenuItem(

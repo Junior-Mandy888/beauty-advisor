@@ -40,7 +40,7 @@ class AIVideoService {
         duration: data['duration'],
         error: data['error'],
       );
-    } on DioException catch (e) {
+    } on DioException catch (_) {
       // 离线模式返回演示结果
       return VideoGenerationResult(
         success: true,
@@ -88,7 +88,7 @@ class AIVideoService {
         duration: data['duration'],
         error: data['error'],
       );
-    } on DioException catch (e) {
+    } on DioException catch (_) {
       // 离线模式返回演示结果
       return VideoGenerationResult(
         success: true,

@@ -7,9 +7,6 @@ class VirtualTryOnService {
   factory VirtualTryOnService() => _instance;
   VirtualTryOnService._internal();
 
-  // API配置（实际使用时替换为真实API）
-  static const String _apiBaseUrl = 'https://api.example.com/virtual-tryon';
-
   /// 提交虚拟试衣任务
   Future<VirtualTryOnResult?> submitTryOnTask({
     required String userId,
