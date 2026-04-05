@@ -8,37 +8,84 @@ class CommunityService {
 
   // 保存用户发布的帖子
   final List<CommunityPost> _userPosts = [];
+  
+  // 保存用户评论
+  final Map<String, List<Comment>> _postComments = {};
+  
+  // 保存关注状态（用户ID列表）
+  final Set<String> _followingUserIds = {};
+  
+  // 点赞状态
+  final Set<String> _likedPostIds = {};
 
   /// 获取热门帖子
   Future<List<CommunityPost>> getPopularPosts({int limit = 20}) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
     // 合并用户帖子与模拟帖子
-    return [..._userPosts, ..._getMockPosts()];
+    final allPosts = [..._userPosts, ..._getMockPosts()];
+    // 更新点赞和关注状态
+    return allPosts.map((post) => post.copyWith(
+      isLiked: _likedPostIds.contains(post.id),
+      isFollowing: _followingUserIds.contains(post.userId),
+    )).toList();
   }
 
   /// 获取最新帖子
   Future<List<CommunityPost>> getLatestPosts({int limit = 20}) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
     final allPosts = [..._userPosts, ..._getMockPosts()];
     allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return allPosts;
+    // 更新点赞和关注状态
+    return allPosts.map((post) => post.copyWith(
+      isLiked: _likedPostIds.contains(post.id),
+      isFollowing: _followingUserIds.contains(post.userId),
+    )).toList();
+  }
+
+  /// 获取关注列表
+  Future<List<CommunityPost>> getFollowingPosts({int limit = 20}) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final allPosts = [..._userPosts, ..._getMockPosts()];
+    // 只返回已关注用户的帖子
+    return allPosts
+        .where((post) => _followingUserIds.contains(post.userId))
+        .map((post) => post.copyWith(
+          isLiked: _likedPostIds.contains(post.id),
+          isFollowing: true,
+        ))
+        .toList();
   }
 
   /// 获取帖子详情
   Future<CommunityPost?> getPostDetail(String postId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 200));
     // 先查用户帖子
-    final userPost = _userPosts.where((p) => p.id == postId).firstOrNull;
-    if (userPost != null) return userPost;
+    var post = _userPosts.where((p) => p.id == postId).firstOrNull;
+    if (post != null) {
+      return post.copyWith(
+        isLiked: _likedPostIds.contains(postId),
+        isFollowing: _followingUserIds.contains(post.userId),
+      );
+    }
     // 再查模拟帖子
-    final posts = _getMockPosts();
-    return posts.firstWhere((p) => p.id == postId);
+    final mockPosts = _getMockPosts();
+    final mockPost = mockPosts.where((p) => p.id == postId).firstOrNull;
+    if (mockPost != null) {
+      return mockPost.copyWith(
+        isLiked: _likedPostIds.contains(postId),
+        isFollowing: _followingUserIds.contains(mockPost.userId),
+      );
+    }
+    return null;
   }
 
   /// 获取帖子评论
   Future<List<Comment>> getComments(String postId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return _getMockComments(postId);
+    await Future.delayed(const Duration(milliseconds: 200));
+    // 获取用户评论 + 模拟评论
+    final userComments = _postComments[postId] ?? [];
+    final mockComments = _getMockComments(postId);
+    return [...userComments, ...mockComments];
   }
 
   /// 发布帖子（支持本地图片base64）
@@ -51,10 +98,11 @@ class CommunityService {
     List<String> imageBase64List = const [],
     List<String> tags = const [],
   }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
     
+    final now = DateTime.now();
     final post = CommunityPost(
-      id: 'post_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'post_${now.millisecondsSinceEpoch}',
       userId: userId,
       nickname: nickname,
       avatarUrl: avatarUrl,
@@ -66,7 +114,7 @@ class CommunityService {
       commentCount: 0,
       isLiked: false,
       isFollowing: false,
-      createdAt: DateTime.now(),
+      createdAt: now,
     );
     
     // 添加到用户帖子列表
@@ -75,51 +123,75 @@ class CommunityService {
     return post;
   }
 
-  /// 点赞帖子
-  Future<bool> likePost(String postId, bool isLike) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    // 更新用户帖子的点赞状态
-    final index = _userPosts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      final post = _userPosts[index];
-      _userPosts[index] = post.copyWith(
+  /// 点赞帖子 - 返回更新后的帖子
+  Future<CommunityPost?> likePost(String postId, bool isLike) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    // 更新点赞状态
+    if (isLike) {
+      _likedPostIds.add(postId);
+    } else {
+      _likedPostIds.remove(postId);
+    }
+    
+    // 更新帖子点赞数
+    CommunityPost? updatedPost;
+    
+    // 检查用户帖子
+    final userIndex = _userPosts.indexWhere((p) => p.id == postId);
+    if (userIndex != -1) {
+      final post = _userPosts[userIndex];
+      updatedPost = post.copyWith(
+        likeCount: isLike ? post.likeCount + 1 : (post.likeCount > 0 ? post.likeCount - 1 : 0),
+        isLiked: isLike,
+      );
+      _userPosts[userIndex] = updatedPost;
+      return updatedPost;
+    }
+    
+    // 检查模拟帖子
+    final mockPosts = _getMockPosts();
+    final mockIndex = mockPosts.indexWhere((p) => p.id == postId);
+    if (mockIndex != -1) {
+      final post = mockPosts[mockIndex];
+      return post.copyWith(
         likeCount: isLike ? post.likeCount + 1 : (post.likeCount > 0 ? post.likeCount - 1 : 0),
         isLiked: isLike,
       );
     }
-    return true;
+    
+    return null;
   }
 
-  /// 关注/取消关注用户
-  Future<bool> followUser(String postId, bool isFollow) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    // 更新用户帖子的关注状态
-    final index = _userPosts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      final post = _userPosts[index];
-      _userPosts[index] = post.copyWith(isFollowing: isFollow);
+  /// 关注/取消关注用户 - 返回是否成功
+  Future<bool> followUser(String userId, bool isFollow) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    if (isFollow) {
+      _followingUserIds.add(userId);
+    } else {
+      _followingUserIds.remove(userId);
     }
+    
     return true;
   }
 
-  /// 发布评论
-  Future<Comment?> createComment({
+  /// 检查是否已关注用户
+  bool isFollowing(String userId) {
+    return _followingUserIds.contains(userId);
+  }
+
+  /// 发布评论 - 返回更新后的评论列表
+  Future<List<Comment>> createComment({
     required String postId,
     required String userId,
     required String nickname,
     String? avatarUrl,
     required String content,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 200));
     
-    // 更新帖子评论数
-    final index = _userPosts.indexWhere((p) => p.id == postId);
-    if (index != -1) {
-      final post = _userPosts[index];
-      _userPosts[index] = post.copyWith(commentCount: post.commentCount + 1);
-    }
-    
-    return Comment(
+    final comment = Comment(
       id: 'comment_${DateTime.now().millisecondsSinceEpoch}',
       postId: postId,
       userId: userId,
@@ -128,16 +200,36 @@ class CommunityService {
       content: content,
       createdAt: DateTime.now(),
     );
+    
+    // 添加到评论列表
+    if (!_postComments.containsKey(postId)) {
+      _postComments[postId] = [];
+    }
+    _postComments[postId]!.insert(0, comment);
+    
+    // 更新帖子评论数
+    final userIndex = _userPosts.indexWhere((p) => p.id == postId);
+    if (userIndex != -1) {
+      final post = _userPosts[userIndex];
+      _userPosts[userIndex] = post.copyWith(commentCount: post.commentCount + 1);
+    }
+    
+    // 返回更新后的评论列表
+    return getComments(postId);
   }
 
   /// 搜索帖子
   Future<List<CommunityPost>> searchPosts(String keyword) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 200));
     final allPosts = [..._userPosts, ..._getMockPosts()];
     return allPosts
         .where((p) => 
             p.content.contains(keyword) || 
             p.tags.any((t) => t.contains(keyword)))
+        .map((post) => post.copyWith(
+          isLiked: _likedPostIds.contains(post.id),
+          isFollowing: _followingUserIds.contains(post.userId),
+        ))
         .toList();
   }
 
@@ -167,7 +259,7 @@ class CommunityService {
         tags: ['发型', '方脸', '显脸小'],
         likeCount: 256,
         commentCount: 45,
-        isLiked: true,
+        isLiked: false,
         createdAt: DateTime.now().subtract(const Duration(hours: 5)),
       ),
       CommunityPost(
@@ -221,8 +313,6 @@ class CommunityService {
         userId: 'u101',
         nickname: '小红',
         content: '太好看了！请问口红是什么色号呀？',
-        likeCount: 12,
-        isLiked: false,
         createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
       ),
       Comment(
@@ -231,8 +321,6 @@ class CommunityService {
         userId: 'u102',
         nickname: '爱美的小美',
         content: '求同款链接！',
-        likeCount: 8,
-        isLiked: false,
         createdAt: DateTime.now().subtract(const Duration(hours: 1)),
       ),
       Comment(
@@ -241,8 +329,6 @@ class CommunityService {
         userId: 'u103',
         nickname: '穿搭小白',
         content: '学到了！谢谢分享～',
-        likeCount: 5,
-        isLiked: true,
         createdAt: DateTime.now().subtract(const Duration(hours: 2)),
       ),
     ];
