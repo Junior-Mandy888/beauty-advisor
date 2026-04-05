@@ -411,7 +411,7 @@ class _HomeScreenState extends State<HomeScreen> {
             BrandIconButton(
               icon: FeatureIconConfig.favorite.icon,
               label: FeatureIconConfig.favorite.label,
-              onTap: () => context.push('/profile'),
+              onTap: () => context.push('/recommendation'),
               iconColor: FeatureIconConfig.favorite.color,
             ),
           ],

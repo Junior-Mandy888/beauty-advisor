@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:beauty_advisor/providers/user_provider.dart';
+import 'package:beauty_advisor/providers/membership_provider.dart';
 import 'package:beauty_advisor/services/baidu_ai_service.dart';
 
 class FaceAnalysisScreen extends StatefulWidget {
@@ -334,6 +335,13 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
   Future<void> _analyzeFace() async {
     if (_imageBytes == null) return;
 
+    // 检查会员使用限制
+    final membershipProvider = context.read<MembershipProvider>();
+    if (!membershipProvider.canUseFaceAnalysis()) {
+      _showLimitReachedDialog();
+      return;
+    }
+
     setState(() {
       _isAnalyzing = true;
       _error = null;
@@ -343,6 +351,10 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
     try {
       final base64Image = base64Encode(_imageBytes!);
       final result = await BaiduAIService.analyzeFace(base64Image);
+      
+      // 使用次数+1
+      membershipProvider.useFaceAnalysis();
+      
       setState(() {
         _result = result;
         _isAnalyzing = false;
@@ -353,6 +365,56 @@ class _FaceAnalysisScreenState extends State<FaceAnalysisScreen> {
         _isAnalyzing = false;
       });
     }
+  }
+
+  void _showLimitReachedDialog() {
+    final membershipProvider = context.read<MembershipProvider>();
+    final remaining = membershipProvider.getRemainingCount('face_analysis');
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('使用次数已达上限'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock, size: 48.sp, color: Colors.grey[400]),
+            SizedBox(height: 16.h),
+            Text(
+              '今日脸型分析次数已用完',
+              style: TextStyle(fontSize: 16.sp),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              '剩余次数: $remaining 次',
+              style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
+            ),
+            SizedBox(height: 16.h),
+            Text(
+              '升级会员可享受更多次数',
+              style: TextStyle(fontSize: 12.sp, color: const Color(0xFFFF6B9D)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('知道了'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.push('/membership');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B9D),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('升级会员'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _saveResult() {

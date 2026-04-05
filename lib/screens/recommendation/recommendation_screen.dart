@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:beauty_advisor/providers/user_provider.dart';
 import 'package:beauty_advisor/providers/weather_provider.dart';
 import 'package:beauty_advisor/providers/recommendation_provider.dart';
+import 'package:beauty_advisor/providers/membership_provider.dart';
 import 'package:beauty_advisor/services/deepseek_service.dart';
 import 'package:beauty_advisor/services/liblib_service.dart';
 import 'package:beauty_advisor/models/recommendation.dart';
@@ -384,6 +386,13 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
       return;
     }
 
+    // 检查会员使用限制
+    final membershipProvider = context.read<MembershipProvider>();
+    if (!membershipProvider.canUseRecommendation()) {
+      _showLimitReachedDialog('recommendation');
+      return;
+    }
+
     setState(() {
       _isLoadingText = true;
       _error = null;
@@ -399,6 +408,9 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         weather: weather.currentWeather?.condition ?? '晴天',
         gender: '女',
       );
+
+      // 使用次数+1
+      membershipProvider.useRecommendation();
 
       setState(() {
         _textRecommendation = result;
@@ -444,6 +456,13 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
       return;
     }
 
+    // 检查会员使用限制
+    final membershipProvider = context.read<MembershipProvider>();
+    if (!membershipProvider.canUseImageRecommendation()) {
+      _showLimitReachedDialog('image_recommendation');
+      return;
+    }
+
     setState(() {
       _isLoadingImage = true;
       _error = null;
@@ -457,6 +476,11 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         faceShape: user.faceShape!,
         weather: '${weather.currentWeather?.condition ?? "晴"}，${weather.currentWeather?.temperature.toInt() ?? 26}°C',
       );
+
+      // 使用次数+1（只有成功时才计数）
+      if (result.success) {
+        membershipProvider.useImageRecommendation();
+      }
 
       setState(() {
         if (result.success && result.imageUrl != null) {
@@ -700,6 +724,68 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
               provider.clearAll(context.read<UserProvider>().userId!);
             },
             child: Text('清空', style: TextStyle(color: Colors.red[400])),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLimitReachedDialog(String feature) {
+    final membershipProvider = context.read<MembershipProvider>();
+    final remaining = membershipProvider.getRemainingCount(feature);
+    String featureName;
+    
+    switch (feature) {
+      case 'recommendation':
+        featureName = '文字推荐';
+        break;
+      case 'image_recommendation':
+        featureName = '图片推荐';
+        break;
+      default:
+        featureName = '该功能';
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('使用次数已达上限'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock, size: 48.sp, color: Colors.grey[400]),
+            SizedBox(height: 16.h),
+            Text(
+              '今日${featureName}次数已用完',
+              style: TextStyle(fontSize: 16.sp),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              '剩余次数: $remaining 次',
+              style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
+            ),
+            SizedBox(height: 16.h),
+            Text(
+              '升级会员可享受更多次数',
+              style: TextStyle(fontSize: 12.sp, color: const Color(0xFFFF6B9D)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('知道了'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.push('/membership');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B9D),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('升级会员'),
           ),
         ],
       ),
