@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -177,12 +178,7 @@ class _WardrobeScreenState extends State<WardrobeScreen> with SingleTickerProvid
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
                   ),
-                  child: item.imageUrl != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
-                          child: Image.network(item.imageUrl!, fit: BoxFit.cover, width: double.infinity),
-                        )
-                      : Center(child: Icon(item.category.icon, size: 48.sp, color: Colors.grey[400])),
+                  child: _buildItemImage(item),
                 ),
               ),
               Padding(
@@ -210,6 +206,67 @@ class _WardrobeScreenState extends State<WardrobeScreen> with SingleTickerProvid
               onPressed: () => _confirmDelete(context, item, provider),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建衣橱物品图片（支持本地base64和网络URL）
+  Widget _buildItemImage(WardrobeItem item) {
+    // 优先使用本地base64图片
+    if (item.localImagePath != null && item.localImagePath!.isNotEmpty) {
+      try {
+        final bytes = base64Decode(item.localImagePath!);
+        return ClipRRect(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            errorBuilder: (_, __, ___) => _buildPlaceholderImage(item),
+          ),
+        );
+      } catch (e) {
+        debugPrint('解析base64图片失败: $e');
+      }
+    }
+    
+    // 使用网络URL
+    if (item.imageUrl != null && item.imageUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
+        child: Image.network(
+          item.imageUrl!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => _buildPlaceholderImage(item),
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+                strokeWidth: 2,
+              ),
+            );
+          },
+        ),
+      );
+    }
+    
+    // 无图片时显示占位符
+    return _buildPlaceholderImage(item);
+  }
+  
+  Widget _buildPlaceholderImage(WardrobeItem item) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(item.category.icon, size: 48.sp, color: Colors.grey[400]),
+          SizedBox(height: 8.h),
+          Text(item.category.label, style: TextStyle(fontSize: 12.sp, color: Colors.grey[400])),
         ],
       ),
     );

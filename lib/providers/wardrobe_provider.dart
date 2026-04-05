@@ -75,17 +75,31 @@ class WardrobeProvider extends ChangeNotifier {
     try {
       // 生成正式 ID
       final now = DateTime.now();
+      
+      // 保存图片到本地（base64）
+      String? localImageBase64;
+      if (imageBytes != null) {
+        localImageBase64 = base64Encode(imageBytes);
+      }
+      
       final newItem = item.copyWith(
         id: '${_userId}_${now.millisecondsSinceEpoch}',
         createdAt: now,
         updatedAt: now,
+        localImagePath: localImageBase64, // 使用 localImagePath 存储 base64
       );
 
-      // 如果有图片，先上传到 Supabase Storage
       String? imageUrl;
+      
+      // 尝试上传图片到云端
       if (imageBytes != null) {
-        imageUrl = await _uploadImage(newItem.id, imageBytes);
-        debugPrint('上传图片结果: $imageUrl');
+        try {
+          imageUrl = await _uploadImage(newItem.id, imageBytes);
+          debugPrint('上传图片结果: $imageUrl');
+        } catch (e) {
+          debugPrint('图片上传失败，使用本地存储: $e');
+          // 图片上传失败，但本地已有base64，不影响用户使用
+        }
       }
 
       // 更新图片URL
@@ -95,8 +109,13 @@ class WardrobeProvider extends ChangeNotifier {
 
       debugPrint('保存物品: ${itemToSave.toJson()}');
 
-      // 保存到 Supabase
-      await SupabaseService.saveWardrobeItem(itemToSave.toJson());
+      // 尝试保存到 Supabase
+      try {
+        await SupabaseService.saveWardrobeItem(itemToSave.toJson());
+      } catch (e) {
+        debugPrint('保存到云端失败: $e');
+        // 云端保存失败，本地仍然可用
+      }
 
       // 更新本地列表
       _items.add(itemToSave);
